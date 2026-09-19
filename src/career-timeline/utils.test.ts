@@ -138,4 +138,60 @@ describe('mapTimelinePhaseDraft', () => {
     expect(mapped.milestones).toBeUndefined();
     expect(mapped.title).toBe('Started out');
   });
+
+  it('passes through every field the real TimelinePhase/TimelineMilestone types support beyond the original hand-picked subset — regression coverage for the wiki#938 completeness fix', () => {
+    const phaseDraft: TimelinePhaseDraft = {
+      key: 3,
+      title: 'Scenario phase',
+      shortTitle: 'Scenario',
+      side: 'left',
+      iconId: 'flag',
+      platformsLabel: 'Tech Stack',
+      activeLabel: 'Now',
+      photo: { src: '/photo.jpg', alt: 'A photo' },
+      projects: [{ name: 'Side Project', logo: '/logos/side-project.svg' }],
+      projectsLabel: 'Building in public',
+      scenarioLabel: 'Option A',
+      overdue: true,
+      new: true,
+      hideDecoration: true,
+      textAlign: 'right',
+      dotTooltip: 'Custom tooltip',
+      milestones: [
+        {
+          date: '2020-01',
+          title: 'A milestone',
+          iconId: 'star',
+          done: true,
+          overdue: true,
+          new: true,
+          dotTooltip: 'Milestone tooltip',
+        },
+      ],
+    };
+
+    const mapped = mapTimelinePhaseDraft(phaseDraft, {
+      renderIcon,
+      renderPlatform: (platform) => platform,
+    });
+
+    expect(mapped.shortTitle).toBe('Scenario');
+    expect(mapped.platformsLabel).toBe('Tech Stack');
+    expect(mapped.activeLabel).toBe('Now');
+    expect(mapped.photo).toEqual({ src: '/photo.jpg', alt: 'A photo' });
+    expect(mapped.projects).toEqual([{ name: 'Side Project', logo: '/logos/side-project.svg' }]);
+    expect(mapped.projectsLabel).toBe('Building in public');
+    expect(mapped.scenarioLabel).toBe('Option A');
+    expect(mapped.overdue).toBe(true);
+    expect(mapped.new).toBe(true);
+    expect(mapped.hideDecoration).toBe(true);
+    expect(mapped.textAlign).toBe('right');
+    expect(mapped.dotTooltip).toBe('Custom tooltip');
+
+    const milestone = mapped.milestones?.[0];
+    expect(milestone?.done).toBe(true);
+    expect(milestone?.overdue).toBe(true);
+    expect(milestone?.new).toBe(true);
+    expect(milestone?.dotTooltip).toBe('Milestone tooltip');
+  });
 });
