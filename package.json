@@ -24,7 +24,9 @@
     "clean": "rm -rf dist",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "banned-content": "node scripts/check-banned-content.js",
+    "postinstall": "node scripts/setup-hooks.cjs"
   },
   "repository": {
     "type": "git",

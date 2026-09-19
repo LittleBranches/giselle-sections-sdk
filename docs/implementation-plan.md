@@ -224,7 +224,7 @@ One builder file per page domain. No backend knowledge, no credentials, no hardc
 
 ### Consuming App: Wire Up Client
 
-- [ ] Update `alexrebula/src/sections-api/client.ts` to use `createSectionsClient`
+- [ ] Update the consuming app's sections-api client to use `createSectionsClient`
 - [ ] Implement `SectionDataProvider` interface as `ApolloSectionsProvider` (or `SupabaseSectionsProvider`)
 - [ ] Verify: factory functions in `sections-api/` become thin one-liners
 - [ ] Remove any builder logic that was duplicated between app and SDK

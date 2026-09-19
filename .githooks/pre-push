@@ -1,0 +1,4 @@
+#!/bin/sh
+# Pre-push guard — runs on every `git push`.
+set -e
+npm run banned-content
