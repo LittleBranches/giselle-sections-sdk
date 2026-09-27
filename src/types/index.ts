@@ -120,51 +120,6 @@ export type HomeFAQsProps = BaseSectionProps & {
   faqs?: FAQItemProps[];
 };
 
-export type HighlightFeatureItemProps = SectionIconItem & {
-  subtitle: string;
-  imgUrl: string[];
-};
-
-export type HomeHighlightFeaturesSectionProps = BaseSectionProps & {
-  features?: HighlightFeatureItemProps[];
-};
-
-export type HugePackImageProps = {
-  id: string;
-  srcLight: string;
-  srcDark: string;
-  height: { xs: number | string; md: number | string };
-  width: { xs: string; md: string };
-};
-
-export type HugePackElementsSectionProps = BaseSectionProps & {
-  button?: SectionIconButtonProps;
-  images?: HugePackImageProps[];
-};
-
-export type AdvertisementSectionProps = BaseSectionProps & {
-  buttons: SectionIconButtonProps[];
-  illustrationSrc: string;
-};
-
-export type ForDesignerSectionProps = BaseSectionProps & {
-  button: SectionButtonProps;
-  backgroundImageSrc: string;
-};
-
-export type PricingPlanProps = {
-  license: string;
-  price: number;
-  commons: string[];
-  options: string[];
-  icons: string[];
-};
-
-export type PricingSectionProps = BaseSectionProps & {
-  plans: PricingPlanProps[];
-  button: SectionButtonProps;
-};
-
 // ============================================================================
 // SERVICES SECTION TYPES
 // ============================================================================

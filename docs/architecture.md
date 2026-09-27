@@ -127,9 +127,9 @@ A second portfolio site installs `@alexrebula/giselle-sections-sdk`, implements 
 
 ## Provider Interface (planned)
 
-This pattern is directly analogous to how Minimal handles multi-provider auth: one shared `AuthContext` typed with `AuthContextValue`, and separate `AuthProvider` implementations for JWT, Supabase, Firebase, Auth0, and Amplify — all fulfilling the same interface. You swap the provider wrapping the app; nothing inside the app changes.
+The pattern is one shared context type with interchangeable providers: a single context typed with one value interface, and separate provider implementations that all fulfil that same interface. You swap the provider wrapping the app; nothing inside the app changes.
 
-`giselle-sections-sdk` will follow the same model for section data.
+`giselle-sections-sdk` will apply this model to section data.
 
 ### Layer 1 — Provider interface (in the SDK)
 
@@ -254,7 +254,7 @@ export const getHomeViewData = (params) => client.getHomeViewData(params);
 export const getServicesViewData = (params) => client.getServicesViewData(params);
 ```
 
-Swap `ApolloSectionsProvider` for `SupabaseSectionsProvider` and the rest of the app is untouched — same as swapping `<AuthProvider>` in Minimal.
+Swap `ApolloSectionsProvider` for `SupabaseSectionsProvider` and the rest of the app is untouched, because both providers fill the same shared context type.
 
 The consuming app's backend credentials and content schema stay entirely private. The SDK never sees them.
 

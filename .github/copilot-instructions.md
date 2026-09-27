@@ -6,18 +6,17 @@ It is the framework-agnostic data layer of the sections-api pattern.
 ## ⚠️ Copyright rule — read this first
 
 This package is MIT-licensed and public. It must contain **zero code derived from any
-proprietary theme or kit** — including the Minimals MUI kit used in the sibling
-`alexrebula` portfolio project.
+proprietary theme or kit**.
 
 **Hard rules — non-negotiable:**
 
-1. **No Minimals code.** The following identifiers must never appear in this package:
+1. **No proprietary theme or kit code.** The following identifiers must never appear in this package:
    `varAlpha`, `varFade`, `varBlur`, `customShadows`, `_mock`, or any other utility
-   that originated in the Minimals theme. If similar functionality is needed, write it
+   that originated in a proprietary theme or kit. If similar functionality is needed, write it
    from scratch independently.
 
-2. **No imports from the `alexrebula` portfolio.** This package must not import from
-   `alexrebula/src/` or any path inside that private repo.
+2. **No imports from private application repos.** This package must not import from
+   any path inside a private consumer app.
 
 3. **No proprietary dependencies.** Only pure TypeScript and `react` types (for `ReactNode`)
    are permitted. No UI frameworks, no theme packages, no commercial libraries.
@@ -58,7 +57,7 @@ At the start of every new Copilot session in this package, read these files:
 - Shared TypeScript interfaces that any sections-api consumer would need (`BaseSectionProps`, `SectionItemBase`, etc.)
 - Pure utility helpers (`createDataFactory`, `mapDataArray`, `pickFields`, etc.) — no side effects, no JSX
 - Generic sample/placeholder data safe to publish (no personal content)
-- **NOT** personal content (names, images, specific copy from `alexrebula`)
+- **NOT** personal content (names, images, specific copy from any consumer app)
 - **NOT** UI components, MUI wrappers, or any CSS
 
 ### What Copilot should help build
