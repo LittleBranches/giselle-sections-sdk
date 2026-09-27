@@ -58,10 +58,6 @@ Pure, no-runtime data contracts and helpers. Currently active.
 - [x] `HomeIntegrationsProps`
 - [x] `TestimonialItemProps`, `HomeTestimonialsProps`
 - [x] `FAQItemProps`, `HomeFAQsProps`
-- [x] `HighlightFeatureItemProps`, `HomeHighlightFeaturesSectionProps`
-- [x] `HugePackImageProps`, `HugePackElementsSectionProps`
-- [x] `AdvertisementSectionProps`, `ForDesignerSectionProps`
-- [x] `PricingPlanProps`, `PricingSectionProps`
 - [x] `ServicePackageProps`, `DesignAddOnProps`, `DeliveryStepProps`
 - [x] `ServiceDeliverableProps`, `ServiceProcessItemProps`
 - [x] `FaqToolLink`, `HomeFaqToolLink`, `ServicesFaqToolLink`
@@ -117,7 +113,7 @@ Pure, no-runtime data contracts and helpers. Currently active.
 
 ## Phase 2 — Async Adapters (Consuming App)
 
-No SDK changes — this phase happens in the **consuming app** (`alexrebula`). SDK surface is stable.
+No SDK changes — this phase happens in the **consuming app**. SDK surface is stable.
 
 ### Backend Setup
 
@@ -183,11 +179,6 @@ One builder file per page domain. No backend knowledge, no credentials, no hardc
 - [ ] `buildHomeIntegrationsData(content)` → `HomeIntegrationsProps`
 - [ ] `buildHomeTestimonialsData(content)` → `HomeTestimonialsProps`
 - [ ] `buildHomeFAQsData(content)` → `HomeFAQsProps`
-- [ ] `buildHighlightFeaturesData(content)` → `HomeHighlightFeaturesSectionProps`
-- [ ] `buildHugePackElementsData(content)` → `HugePackElementsSectionProps`
-- [ ] `buildAdvertisementData(content, params)` → `AdvertisementSectionProps`
-- [ ] `buildForDesignerData(content, params)` → `ForDesignerSectionProps`
-- [ ] `buildHomePricingData(content, params)` → `PricingSectionProps`
 
 #### Services Builders (`src/builders/services.ts`)
 
@@ -224,7 +215,7 @@ One builder file per page domain. No backend knowledge, no credentials, no hardc
 
 ### Consuming App: Wire Up Client
 
-- [ ] Update `alexrebula/src/sections-api/client.ts` to use `createSectionsClient`
+- [ ] Update the consuming app's sections-api client to use `createSectionsClient`
 - [ ] Implement `SectionDataProvider` interface as `ApolloSectionsProvider` (or `SupabaseSectionsProvider`)
 - [ ] Verify: factory functions in `sections-api/` become thin one-liners
 - [ ] Remove any builder logic that was duplicated between app and SDK
