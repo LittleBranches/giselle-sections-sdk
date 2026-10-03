@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+# Pre-push guard — runs on every `git push` once `npm install` has wired .githooks/
+# (see scripts/setup-hooks.cjs). To bypass it in an emergency: `git push --no-verify`.
+set -euo pipefail
+npm run banned-content

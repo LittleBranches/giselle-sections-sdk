@@ -139,7 +139,7 @@ describe('mapTimelinePhaseDraft', () => {
     expect(mapped.title).toBe('Started out');
   });
 
-  it('passes through every field the real TimelinePhase/TimelineMilestone types support beyond the original hand-picked subset — regression coverage for the wiki#938 completeness fix', () => {
+  it('passes through every field the real TimelinePhase/TimelineMilestone types support beyond the original hand-picked subset — regression coverage for the completeness fix', () => {
     const phaseDraft: TimelinePhaseDraft = {
       key: 3,
       title: 'Scenario phase',
