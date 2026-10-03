@@ -12,6 +12,16 @@ See [docs/architecture.md](./docs/architecture.md) for the full design rationale
 
 ---
 
+## The mango tree
+
+The Giselle packages are a Philippine mango tree. The trunk is the shared foundation — TypeScript conventions, typed data contracts, test discipline — that all packages grow from. Each package is one mango on the tree, at its own stage of ripeness.
+
+`giselle-sections-sdk` is the **green mango** 🟢 — functional, typed, and already in use, but the API is still evolving fast. It is the deepest root on the tree: a framework-agnostic data layer that lets any consuming app stay a pure renderer with zero hardcoded content. When the builders and providers phases ship, this mango starts turning yellow-green.
+
+Ripeness scale: 🟢 alpha → 🟡 beta → 🟠 stable → 🟤 LTS.
+
+---
+
 ## Status
 
 **Phase 1 — `v0.1.0` (active development)**
