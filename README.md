@@ -36,6 +36,7 @@ No package ships to npm until the tests meet the same standard as the implementa
 | `types`       | ✅ Now    | All shared TypeScript interfaces — `BaseSectionProps`, `HomeItemProps`, `TestimonialItemProps`, `FAQItemProps`, `ServicePackageProps`, `DashboardPreviewContentConfig`, and more |
 | `utils`       | ✅ Now    | Pure, stateless helpers — `createDataFactory`, `mapDataArray`, `filterDataArray`, `createFaqToolButtons`         |
 | `samples`     | ✅ Now    | Generic placeholder data for tests and Storybook — `HOME_ITEMS_SAMPLE`, `HOME_TESTIMONIALS_SAMPLE`, `HOME_FAQS_SAMPLE`, and more |
+| `career-timeline` | ✅ Now (tested) | Provider/UI-agnostic types and adapter logic for a two-column career timeline — `TimelinePhaseDraft`, `TimelineMilestoneDraft`, `mapTimelinePhaseDraft`, `createStableMilestoneKey`, `resolveDotBackground`, and more. This slice has a real, reviewed test suite already — see the note below on the rest of the package. |
 | `builders`    | 🔜 Planned | Generic section builder functions — take typed content + params, return typed section props; no hardcoded strings |
 | `providers`   | 🔜 Planned | Typed provider interface — any backend (Apollo, Supabase, Sanity, JSON) can implement it and become pluggable    |
 
