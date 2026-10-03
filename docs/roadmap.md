@@ -36,7 +36,7 @@ Phase 0 (infrastructure) is mostly complete. Phase 1 (types, utils, samples) is 
 | `BaseSectionProps`, `SectionImageProps`, `HomeItemProps`    | ✅     |
 | `createDataFactory` builder                                 | ✅     |
 | Additional `BaseSectionProps` variants                      | ⬜     |
-| Generic builder utilities (`mapDataArray`, `pickFields`)    | ⬜     |
+| Additional generic utilities (`pickFields`)                  | ⬜     |
 | Generic sample/placeholder data for all section types       | ⬜     |
 
 ---
