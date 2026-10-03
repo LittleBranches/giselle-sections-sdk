@@ -20,14 +20,13 @@
     "LICENSE"
   ],
   "scripts": {
-    "prepare": "npm run build",
+    "prepare": "node scripts/setup-hooks.cjs && npm run build",
     "build": "tsup",
     "clean": "rm -rf dist",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
-    "banned-content": "node scripts/check-banned-content.js",
-    "postinstall": "node scripts/setup-hooks.cjs"
+    "banned-content": "node scripts/check-banned-content.js"
   },
   "repository": {
     "type": "git",

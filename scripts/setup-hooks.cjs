@@ -1,9 +1,12 @@
 /**
- * Wires .githooks/ as the git hooks directory on postinstall.
- * Run automatically via `npm install`.
- * Skips silently in CI environments and outside git working trees.
+ * Wires .githooks/ as the git hooks directory when contributors run `npm install`
+ * (it is part of the `prepare` script).
+ *
+ * Skips silently in CI environments and outside git working trees. Always exits 0,
+ * even when `git config` fails (a warning is printed instead): it must never break
+ * an install.
  */
-const { execSync } = require('child_process');
+const { execFileSync } = require('child_process');
 const { existsSync } = require('fs');
 const path = require('path');
 
@@ -23,7 +26,11 @@ if (!existsSync(gitDir)) {
 
 if (existsSync(hooksDir)) {
   try {
-    execSync('git config core.hooksPath .githooks', { stdio: 'inherit' });
+    // cwd is the repo root, so this never rewrites another repository's hooks path
+    execFileSync('git', ['config', 'core.hooksPath', '.githooks'], {
+      cwd: repoRoot,
+      stdio: 'inherit',
+    });
     console.log('✓ Git hooks configured: .githooks/');
   } catch (err) {
     console.warn('Warning: could not configure git hooks —', err.message);
