@@ -18,7 +18,7 @@
 
 ## Checklist
 
-- [ ] Quality gate passes locally: `npm run check:verify`
+- [ ] Quality gate passes locally: `npm run typecheck && npm test`
 - [ ] This PR targets a branch — not a direct push to `main` / `master`
 - [ ] No `any` — TypeScript strict mode enforced
 
