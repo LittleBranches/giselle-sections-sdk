@@ -21,7 +21,7 @@ Phase 0 (infrastructure) is mostly complete. Phase 1 (types, utils, samples) is 
 | Package scaffolded: `package.json`, `tsconfig.json`, `tsup.config.ts` | ✅ |
 | Dual ESM + CJS output via tsup                              | ✅     |
 | `peerDependencies` for `react ^18.0.0 \|\| ^19.0.0`        | ✅     |
-| MIT `LICENSE`, `README.md`, `ARCHITECTURE.md`               | ✅     |
+| MIT `LICENSE`, `README.md`, `docs/architecture.md`          | ✅     |
 | PR template                                                 | ✅     |
 | `vitest.config.ts` explicit setup + smoke test              | ⬜     |
 | GitHub Actions CI (`typecheck` + `test` on push/PR)         | ⬜     |
