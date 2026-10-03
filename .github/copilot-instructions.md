@@ -49,7 +49,7 @@ Apply these defaults on every task unless a stricter repo rule overrides them.
 
 ## Brand identity — the Giselle mango tree
 
-The Giselle ecosystem is named after the Filipino wife of the author. The Philippine national fruit is the Carabao mango — both the logo mark and the ecosystem metaphor.
+Use the mango-tree metaphor only as public package documentation: the tree represents shared TypeScript conventions, typed data contracts, and test discipline; each package is a branch; each release has a ripeness stage.
 
 - **The tree** = shared foundation: typed data contracts, TypeScript conventions, test discipline
 - **Each branch** = a package (`giselle-mui`, `giselle-sections-sdk`, `giselle-ui`, `giselle-docs`)
@@ -58,8 +58,6 @@ The Giselle ecosystem is named after the Filipino wife of the author. The Philip
 Ripeness scale: 🟢 green = alpha · 🟡 yellow-green = beta · 🟠 golden = stable · 🟤 amber = LTS
 
 `giselle-sections-sdk` is the **green mango** — deepest root, functional but evolving fast. Framework-agnostic data layer.
-
-**WC-6:** The planned wide hero illustration — watercolour mango tree with per-package label badges. See `alexrebula/docs/brand/logo-concept.md` Track A.
 
 ## Session bootstrap: where Copilot should look first
 
