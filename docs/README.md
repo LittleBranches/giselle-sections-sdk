@@ -3,7 +3,7 @@ sidebar_position: 1
 sidebar_label: 'Overview'
 ---
 
-# @alexrebula/giselle-sections-sdk
+# @littlebranches/giselle-sections-sdk
 
 A provider-agnostic, typed sections data SDK for React portfolio and product sites.
 
@@ -17,5 +17,5 @@ No JSX. No MUI. No personal content. Just types, builders, utilities, and sample
 ## Install
 
 ```bash
-npm install @alexrebula/giselle-sections-sdk
+npm install @littlebranches/giselle-sections-sdk
 ```

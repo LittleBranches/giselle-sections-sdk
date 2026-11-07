@@ -1,7 +1,7 @@
 /**
  * @file utils/index.ts
  * @description Shared data utilities for building section data factories.
- * @usage import { createDataFactory, mapDataArray, filterDataArray, createFaqToolButtons } from '@alexrebula/giselle-sections-data'
+ * @usage import { createDataFactory, mapDataArray, filterDataArray, createFaqToolButtons } from '@littlebranches/giselle-sections-sdk'
  */
 
 import type { FaqToolLink } from '../types';

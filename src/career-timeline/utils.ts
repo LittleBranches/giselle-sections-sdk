@@ -3,7 +3,7 @@
  * @description Pure helpers for turning career-timeline DTOs into stable keys
  * and consumer-rendered shapes. No JSX, no framework imports — `mapTimelinePhaseDto`
  * takes the consumer's own render functions and stays framework-agnostic.
- * @usage import { mapTimelinePhaseDto, createStableMilestoneKey } from '@alexrebula/giselle-sections-data'
+ * @usage import { mapTimelinePhaseDto, createStableMilestoneKey } from '@littlebranches/giselle-sections-sdk'
  */
 
 import type {

@@ -3,7 +3,7 @@ sidebar_position: 3
 sidebar_label: 'Implementation Plan'
 ---
 
-# `@alexrebula/giselle-sections-sdk` — Implementation Plan
+# `@littlebranches/giselle-sections-sdk` — Implementation Plan
 
 Full from-scratch-to-platform build checklist. Each phase is backward-compatible with the previous one. No phase requires tearing down what came before.
 
@@ -265,7 +265,7 @@ Authenticated GUI for content owners to edit section content without code deploy
 Second portfolio site proves the platform claim. No SDK modifications required.
 
 - [ ] Create `client-two-portfolio/` (new Next.js app)
-- [ ] Install `@alexrebula/giselle-sections-sdk` from npm
+- [ ] Install `@littlebranches/giselle-sections-sdk` from npm
 - [ ] Implement `SectionDataProvider` interface against client two's backend (Supabase or flat JSON)
 - [ ] Wire `createSectionsClient` with client two's provider
 - [ ] Render all sections — zero factory logic written from scratch

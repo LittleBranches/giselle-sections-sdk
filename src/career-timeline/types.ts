@@ -5,7 +5,7 @@
  * @pattern DTO-first: a consuming app (or its provider) supplies plain-data DTOs (icon ids,
  * opaque footer slot ids, etc.) and resolves them into rendered output with its own
  * adapter, typically via `mapTimelinePhaseDto` from `./utils`.
- * @usage import type { TimelinePhaseDto, TimelineMilestoneDto } from '@alexrebula/giselle-sections-data'
+ * @usage import type { TimelinePhaseDto, TimelineMilestoneDto } from '@littlebranches/giselle-sections-sdk'
  *
  * No JSX. No MUI. No personal content. Pure TypeScript — bring your own rendering layer.
  */

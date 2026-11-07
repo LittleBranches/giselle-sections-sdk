@@ -1,4 +1,4 @@
-# @alexrebula/giselle-sections-sdk — Copilot Instructions
+# @littlebranches/giselle-sections-sdk — Copilot Instructions
 
 This is a **public, MIT-licensed** TypeScript SDK package.
 It is the framework-agnostic data layer of the sections-api pattern.

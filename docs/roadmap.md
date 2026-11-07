@@ -1,4 +1,4 @@
-# @alexrebula/giselle-sections-sdk — Roadmap
+# @littlebranches/giselle-sections-sdk — Roadmap
 
 Framework-agnostic, typed data SDK for React portfolio and product sites. No JSX. No MUI. Just types, builders, utilities, and samples.
 

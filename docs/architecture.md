@@ -5,7 +5,7 @@ sidebar_label: 'Architecture'
 
 # Architecture: The `sections-api` Pattern and Why This Package Exists
 
-This document explains the design thinking behind `@alexrebula/giselle-sections-sdk` — what problem it solves, how the data layer pattern works, and why the extraction boundary sits where it does.
+This document explains the design thinking behind `@littlebranches/giselle-sections-sdk` — what problem it solves, how the data layer pattern works, and why the extraction boundary sits where it does.
 
 ---
 
@@ -108,7 +108,7 @@ Generic builder logic is extracted from consuming app factories into `giselle-se
 
 ```ts
 // consuming app factory becomes a thin orchestrator
-import { buildServicesPricingSection } from '@alexrebula/giselle-sections-sdk/builders';
+import { buildServicesPricingSection } from '@littlebranches/giselle-sections-sdk/builders';
 
 export const createServicesPricingData = async ({ contactHref }) =>
   buildServicesPricingSection({
@@ -121,7 +121,7 @@ export const createServicesPricingData = async ({ contactHref }) =>
 An authenticated admin area provides a GUI to edit section content, manage images, and preview live — without code deploys.
 
 ### Phase 5 — Second client (platform validated)
-A second portfolio site installs `@alexrebula/giselle-sections-sdk`, implements the provider interface against its own backend, and ships without writing any factory logic. The platform claim is proven.
+A second portfolio site installs `@littlebranches/giselle-sections-sdk`, implements the provider interface against its own backend, and ships without writing any factory logic. The platform claim is proven.
 
 ---
 
@@ -215,7 +215,7 @@ The consuming app implements the `SectionDataProvider` interface against its own
 ```ts
 // your-portfolio-app/src/providers/apollo-provider.ts  ← PRIVATE
 
-import type { SectionDataProvider, HomeViewContent } from '@alexrebula/giselle-sections-sdk';
+import type { SectionDataProvider, HomeViewContent } from '@littlebranches/giselle-sections-sdk';
 
 export class ApolloSectionsProvider implements SectionDataProvider {
   constructor(private client: ApolloClient<unknown>) {}
@@ -245,7 +245,7 @@ export class SupabaseSectionsProvider implements SectionDataProvider {
 ```ts
 // your-portfolio-app/src/sections-api/client.ts
 
-import { createSectionsClient } from '@alexrebula/giselle-sections-sdk';
+import { createSectionsClient } from '@littlebranches/giselle-sections-sdk';
 import { ApolloSectionsProvider } from '../providers/apollo-provider';
 
 const client = createSectionsClient(new ApolloSectionsProvider(apolloClient));
@@ -350,7 +350,7 @@ During development, before the package is published to npm, the consuming app re
 
 ```json
 // consuming-app/package.json
-"@alexrebula/giselle-sections-sdk": "file:../../../giselle-sections-sdk"
+"@littlebranches/giselle-sections-sdk": "file:../../../giselle-sections-sdk"
 ```
 
 After any changes to the package, run `npm install` in the consuming app to re-link. `npm run build` in the package is not required for the type-check step (TypeScript resolves from `src/` via the local symlink), but is required for the published dist output.
@@ -374,7 +374,7 @@ import type {
   DashboardPreviewContentConfig,
   DashboardPreviewVisualConfig,
   SectionPreviewConfig,
-} from '@alexrebula/giselle-sections-sdk';
+} from '@littlebranches/giselle-sections-sdk';
 
 export type { DashboardPreviewContentConfig, DashboardPreviewVisualConfig, SectionPreviewConfig };
 ```
