@@ -3,6 +3,7 @@ import {
   createPlatformIconItem,
   createPlatformLogoItem,
   createStableMilestoneKey,
+  createStableStepKey,
   mapTimelinePhaseDraft,
   resolveDotBackground,
 } from './utils';
@@ -193,5 +194,40 @@ describe('mapTimelinePhaseDraft', () => {
     expect(milestone?.overdue).toBe(true);
     expect(milestone?.new).toBe(true);
     expect(milestone?.dotTooltip).toBe('Milestone tooltip');
+  });
+});
+
+describe('createStableStepKey', () => {
+  it('builds a key from the phase key and the step position', () => {
+    expect(createStableStepKey(4, 0)).toBe('4-0');
+    expect(createStableStepKey(4, 12)).toBe('4-12');
+  });
+});
+
+describe('mapTimelinePhaseDraft checklist steps', () => {
+  const renderers = {
+    renderIcon: (iconId: string) => `icon:${iconId}`,
+    renderPlatform: () => 'platform',
+  };
+  const draft: TimelinePhaseDraft = {
+    key: 7,
+    title: 'A phase',
+    side: 'left',
+    iconId: 'solar:rocket-bold',
+    steps: [{ title: 'First step' }, { title: 'Second step', description: 'More', done: true }],
+  };
+
+  it('resolves steps into children with positional keys, and leaves no steps behind', () => {
+    const mapped = mapTimelinePhaseDraft(draft, renderers);
+    expect(mapped.children).toEqual([
+      { key: '7-0', title: 'First step' },
+      { key: '7-1', title: 'Second step', description: 'More', done: true },
+    ]);
+    expect('steps' in mapped).toBe(false);
+  });
+
+  it('gives no children to a phase without steps', () => {
+    const { steps: _steps, ...bare } = draft;
+    expect(mapTimelinePhaseDraft(bare, renderers).children).toBeUndefined();
   });
 });
