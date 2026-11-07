@@ -57,13 +57,13 @@ export type TimelineMilestoneDto = {
 };
 
 /**
- * One checklist step of a timeline phase: a plain sub-item a person can tick off. The SDK never stores whether it is
+ * One checklist task of a timeline phase: a plain sub-item a person can tick off. The SDK never stores whether it is
  * done in a place of its own: `done` only seeds the state when the content already says so.
  */
-export type TimelineStepDto = {
+export type TimelineTaskDto = {
   title: string;
   description?: string;
-  /** Seeds the step as done. Ticks a person makes later are the consumer's own data, not part of the DTO. */
+  /** Seeds the task as done. Ticks a person makes later are the consumer's own data, not part of the DTO. */
   done?: boolean;
 };
 
@@ -126,11 +126,11 @@ export type TimelinePhaseDto = {
   /** Mirrors `TimelinePhase.anchor` — the name this phase is opened by (`reveal`) and linked to. */
   anchor?: string;
   /**
-   * The phase's checklist steps, in order: plain sub-items a person can tick off. `mapTimelinePhaseDto` resolves
-   * them into `children`, keyed by position (`createStableStepKey`), so a consumer that records ticks by position
-   * should add new steps at the end.
+   * The phase's checklist tasks, in order: plain sub-items a person can tick off. `mapTimelinePhaseDto` resolves
+   * them into `children`, keyed by position (`createStableTaskKey`), so a consumer that records ticks by position
+   * should add new tasks at the end.
    */
-  steps?: TimelineStepDto[];
+  tasks?: TimelineTaskDto[];
   // Deliberately excluded: `children` (recursive `Task[]` sub-items) — see
   // `TimelineMilestoneDto`'s note; the same reasoning applies here.
 };
