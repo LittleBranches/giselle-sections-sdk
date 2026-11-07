@@ -54,6 +54,17 @@ export type TimelineMilestoneDraft = {
   // don't build it speculatively.
 };
 
+/**
+ * One checklist step of a timeline phase: a plain sub-item a person can tick off. The SDK never stores whether it is
+ * done in a place of its own: `done` only seeds the state when the content already says so.
+ */
+export type TimelineStepDraft = {
+  title: string;
+  description?: string;
+  /** Seeds the step as done. Ticks a person makes later are the consumer's own data, not part of the draft. */
+  done?: boolean;
+};
+
 export type TimelinePhotoDraft = { src: string; alt: string };
 
 export type TimelineClientDraft = { name: string; logo: string };
@@ -110,6 +121,12 @@ export type TimelinePhaseDraft = {
   textAlign?: 'left' | 'right';
   /** Mirrors `TimelinePhase.dotTooltip` — overrides the computed spine-dot tooltip. */
   dotTooltip?: string;
+  /**
+   * The phase's checklist steps, in order: plain sub-items a person can tick off. `mapTimelinePhaseDraft` resolves
+   * them into `children`, keyed by position (`createStableStepKey`), so a consumer that records ticks by position
+   * should add new steps at the end.
+   */
+  steps?: TimelineStepDraft[];
   // Deliberately excluded: `children` (recursive `Task[]` sub-items) — see
   // `TimelineMilestoneDraft`'s note; the same reasoning applies here.
 };

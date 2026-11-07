@@ -11,6 +11,7 @@ import type {
   TimelineMilestoneDraft,
   TimelinePhaseDraft,
   TimelinePlatformDraft,
+  TimelineStepDraft,
 } from './types';
 
 /** Lowercase, collapse anything that isn't `[a-z0-9]` into a single hyphen, and trim leading/trailing hyphens. */
@@ -32,6 +33,15 @@ export function createStableMilestoneKey(
   const titleToken = slugify(milestone.shortTitle ?? milestone.title);
   const dateToken = slugify(milestone.date);
   return `${phaseKey}-ms-${dateToken}-${titleToken}`;
+}
+
+/**
+ * Builds the key of a checklist step from its phase key and its position. Unlike a milestone's key it is positional,
+ * since a step is a bare title that may be reworded: ticks recorded against it stay put as long as new steps are
+ * added at the end.
+ */
+export function createStableStepKey(phaseKey: number, stepIndex: number): string {
+  return `${phaseKey}-${stepIndex}`;
 }
 
 /** Resolves a milestone dot's background tone to a concrete color, or `undefined` when unset. */
@@ -71,12 +81,14 @@ export type MappedTimelineMilestone<TIcon> = Omit<TimelineMilestoneDraft, 'iconI
 /** A `TimelinePhaseDraft` with its opaque fields resolved to consumer-rendered output. */
 export type MappedTimelinePhase<TIcon, TPlatformItem, TFooter> = Omit<
   TimelinePhaseDraft,
-  'iconId' | 'footerSlot' | 'platforms' | 'milestones'
+  'iconId' | 'footerSlot' | 'platforms' | 'milestones' | 'steps'
 > & {
   icon: TIcon;
   footer?: TFooter;
   platforms?: TPlatformItem[];
   milestones?: Array<MappedTimelineMilestone<TIcon>>;
+  /** The phase's `steps`, resolved: a key from the phase and the step's position, and the step's own fields. */
+  children?: Array<TimelineStepDraft & { key: string }>;
 };
 
 /**
@@ -91,7 +103,7 @@ export function mapTimelinePhaseDraft<TIcon, TPlatformItem, TFooter>(
   phaseDraft: TimelinePhaseDraft,
   renderers: TimelinePhaseRenderers<TIcon, TPlatformItem, TFooter>
 ): MappedTimelinePhase<TIcon, TPlatformItem, TFooter> {
-  const { iconId, footerSlot, platforms, milestones, ...restPhase } = phaseDraft;
+  const { iconId, footerSlot, platforms, milestones, steps, ...restPhase } = phaseDraft;
   const { renderIcon, renderPlatform, resolveFooter } = renderers;
 
   return {
@@ -99,6 +111,7 @@ export function mapTimelinePhaseDraft<TIcon, TPlatformItem, TFooter>(
     icon: renderIcon(iconId),
     footer: resolveFooter?.(footerSlot),
     platforms: platforms?.map(renderPlatform),
+    children: steps?.map((step, index) => ({ ...step, key: createStableStepKey(phaseDraft.key, index) })),
     milestones: milestones?.map((milestone) => {
       const { iconId: milestoneIconId, dotBgTone, ...restMilestone } = milestone;
       return {
