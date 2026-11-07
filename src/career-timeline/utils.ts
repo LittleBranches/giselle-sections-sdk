@@ -123,6 +123,3 @@ export function mapTimelinePhaseDto<TIcon, TPlatformItem, TFooter>(
     }),
   };
 }
-
-/** @deprecated Renamed `mapTimelinePhaseDto`. */
-export const mapTimelinePhaseDraft = mapTimelinePhaseDto;
