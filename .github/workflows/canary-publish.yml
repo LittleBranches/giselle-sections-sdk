@@ -1,0 +1,64 @@
+name: Canary Publish
+
+# Runs on a push to main, or by hand (`gh workflow run "Canary Publish"`). The checks must pass before the publish job
+# starts. Publishes the package to GitHub Packages under the `canary` tag with Changesets' snapshot flow
+# (`changeset version --snapshot canary`, then `changeset publish --tag canary`), which never touches the real
+# version number or the changelog and never commits or pushes anything back.
+#
+# Two repository variables (Settings, Secrets and variables, Actions, Variables) switch where it runs, for when
+# GitHub's own runners are unavailable:
+#   CANARY_RUNS_ON    JSON for the publish job's `runs-on`, for example ["self-hosted","sdk-canary"]. Unset: ubuntu-latest.
+#   CANARY_SKIP_GATE  `true` skips the checks job, which cannot start without GitHub's runners. Unset: the checks run.
+#
+# No repository secrets are needed: publishing uses the automatic GITHUB_TOKEN with `packages: write`.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch: {}
+
+jobs:
+  checks:
+    name: Checks
+    if: ${{ vars.CANARY_SKIP_GATE != 'true' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '26'
+          cache: 'npm'
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm test
+
+  canary-publish:
+    name: Publish canary to GitHub Packages
+    runs-on: ${{ fromJSON(vars.CANARY_RUNS_ON || '"ubuntu-latest"') }}
+    needs: [checks]
+    # A skipped checks job (CANARY_SKIP_GATE) lets the publish run; a failed or cancelled one still blocks it.
+    if: ${{ !cancelled() && needs.checks.result != 'failure' }}
+    permissions:
+      contents: read
+      packages: write
+      pull-requests: read
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '26'
+          cache: 'npm'
+          registry-url: 'https://npm.pkg.github.com'
+          scope: '@littlebranches'
+      - run: npm ci
+      # Snapshot versioning needs at least one pending changeset; this writes a throwaway one when none is pending.
+      - run: node scripts/ensure-canary-changeset/ensure-canary-changeset.ts
+      - run: npx changeset version --snapshot canary
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      # `changeset publish` runs `npm publish`, whose `prepack` script builds the package first.
+      - run: npx changeset publish --tag canary
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

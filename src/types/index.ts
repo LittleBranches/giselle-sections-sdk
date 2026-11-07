@@ -2,7 +2,7 @@
  * @file types/index.ts
  * @description Centralized type definitions for all reusable section components.
  * @pattern Props-based data flow: View owns data → passes typed props to section components.
- * @usage import type { ... } from '@alexrebula/giselle-sections-data'
+ * @usage import type { ... } from '@littlebranches/giselle-sections-sdk'
  *
  * React-first: types use React.ReactNode where content can be rich.
  * No JSX. No MUI. Pure TypeScript — bring your own styling layer.

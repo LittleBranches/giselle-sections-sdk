@@ -1,5 +1,5 @@
 {
-  "name": "@alexrebula/giselle-sections-data",
+  "name": "@littlebranches/giselle-sections-sdk",
   "version": "0.3.0",
   "description": "Pure, type-safe data factories for React/Next.js section-based UIs.",
   "license": "MIT",
@@ -26,16 +26,18 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
-    "banned-content": "node scripts/check-banned-content.js"
+    "banned-content": "node scripts/check-banned-content.js",
+    "prepack": "npm run build 1>&2",
+    "changeset": "changeset"
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/AlexRebula/giselle-sections-data.git"
+    "url": "git+https://github.com/LittleBranches/giselle-sections-sdk.git"
   },
   "bugs": {
-    "url": "https://github.com/AlexRebula/giselle-sections-data/issues"
+    "url": "https://github.com/LittleBranches/giselle-sections-sdk/issues"
   },
-  "homepage": "https://github.com/AlexRebula/giselle-sections-data#readme",
+  "homepage": "https://github.com/LittleBranches/giselle-sections-sdk#readme",
   "keywords": [
     "react",
     "nextjs",
@@ -49,10 +51,16 @@
     "react": "^18.0.0 || ^19.0.0"
   },
   "devDependencies": {
+    "@changesets/changelog-github": "^1.0.1",
+    "@changesets/cli": "^3.0.3",
     "@types/react": "^19.2.14",
     "react": "^19.2.0",
     "tsup": "^8.5.1",
     "typescript": "5.9",
     "vitest": "^3.0.0"
+  },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://npm.pkg.github.com"
   }
 }
