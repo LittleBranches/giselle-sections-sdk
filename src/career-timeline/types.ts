@@ -48,6 +48,8 @@ export type TimelineMilestoneDto = {
   new?: boolean;
   /** Mirrors `TimelineMilestone.dotTooltip` — overrides the computed spine-dot tooltip. */
   dotTooltip?: string;
+  /** Mirrors `TimelineMilestone.anchor` — the name this milestone is opened by (`reveal`) and linked to. */
+  anchor?: string;
   // Deliberately excluded: `children` (recursive `Task[]` sub-items). Unused by every
   // known consumer today and would require this SDK to also model an unbounded,
   // self-referential Task DTO shape. Add it if a real consumer ever needs it —
@@ -121,6 +123,8 @@ export type TimelinePhaseDto = {
   textAlign?: 'left' | 'right';
   /** Mirrors `TimelinePhase.dotTooltip` — overrides the computed spine-dot tooltip. */
   dotTooltip?: string;
+  /** Mirrors `TimelinePhase.anchor` — the name this phase is opened by (`reveal`) and linked to. */
+  anchor?: string;
   /**
    * The phase's checklist steps, in order: plain sub-items a person can tick off. `mapTimelinePhaseDto` resolves
    * them into `children`, keyed by position (`createStableStepKey`), so a consumer that records ticks by position
