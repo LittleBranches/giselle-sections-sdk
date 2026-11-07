@@ -238,3 +238,27 @@ describe('no Draft names', () => {
     expect(Object.keys(exported).filter((name) => /draft/i.test(name))).toEqual([]);
   });
 });
+
+describe('mapTimelinePhaseDto anchors', () => {
+  const renderers = {
+    renderIcon: (iconId: string) => `icon:${iconId}`,
+    renderPlatform: () => 'platform',
+  };
+
+  it('passes a phase anchor and each milestone anchor through, so a provider can name them', () => {
+    const dto: TimelinePhaseDto = {
+      key: 1,
+      title: 'A phase',
+      side: 'left',
+      iconId: 'x',
+      anchor: 'career-a-phase',
+      milestones: [
+        { date: '2020', title: 'First', iconId: 'x', anchor: 'career-first' },
+        { date: '2021', title: 'Second', iconId: 'x' },
+      ],
+    };
+    const mapped = mapTimelinePhaseDto(dto, renderers);
+    expect(mapped.anchor).toBe('career-a-phase');
+    expect(mapped.milestones?.map((milestone) => milestone.anchor)).toEqual(['career-first', undefined]);
+  });
+});
