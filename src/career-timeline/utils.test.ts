@@ -3,7 +3,7 @@ import {
   createPlatformIconItem,
   createPlatformLogoItem,
   createStableMilestoneKey,
-  createStableStepKey,
+  createStableTaskKey,
   mapTimelinePhaseDto,
   resolveDotBackground,
 } from './utils';
@@ -197,14 +197,14 @@ describe('mapTimelinePhaseDto', () => {
   });
 });
 
-describe('createStableStepKey', () => {
-  it('builds a key from the phase key and the step position', () => {
-    expect(createStableStepKey(4, 0)).toBe('4-0');
-    expect(createStableStepKey(4, 12)).toBe('4-12');
+describe('createStableTaskKey', () => {
+  it('builds a key from the phase key and the task position', () => {
+    expect(createStableTaskKey(4, 0)).toBe('4-0');
+    expect(createStableTaskKey(4, 12)).toBe('4-12');
   });
 });
 
-describe('mapTimelinePhaseDto checklist steps', () => {
+describe('mapTimelinePhaseDto checklist tasks', () => {
   const renderers = {
     renderIcon: (iconId: string) => `icon:${iconId}`,
     renderPlatform: () => 'platform',
@@ -214,20 +214,20 @@ describe('mapTimelinePhaseDto checklist steps', () => {
     title: 'A phase',
     side: 'left',
     iconId: 'solar:rocket-bold',
-    steps: [{ title: 'First step' }, { title: 'Second step', description: 'More', done: true }],
+    tasks: [{ title: 'First task' }, { title: 'Second task', description: 'More', done: true }],
   };
 
-  it('resolves steps into children with positional keys, and leaves no steps behind', () => {
+  it('resolves tasks into children with positional keys, and leaves no tasks behind', () => {
     const mapped = mapTimelinePhaseDto(dto, renderers);
     expect(mapped.children).toEqual([
-      { key: '7-0', title: 'First step' },
-      { key: '7-1', title: 'Second step', description: 'More', done: true },
+      { key: '7-0', title: 'First task' },
+      { key: '7-1', title: 'Second task', description: 'More', done: true },
     ]);
-    expect('steps' in mapped).toBe(false);
+    expect('tasks' in mapped).toBe(false);
   });
 
-  it('gives no children to a phase without steps', () => {
-    const { steps: _steps, ...bare } = dto;
+  it('gives no children to a phase without tasks', () => {
+    const { tasks: _tasks, ...bare } = dto;
     expect(mapTimelinePhaseDto(bare, renderers).children).toBeUndefined();
   });
 });

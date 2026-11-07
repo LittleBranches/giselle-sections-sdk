@@ -11,7 +11,7 @@ import type {
   TimelineMilestoneDto,
   TimelinePhaseDto,
   TimelinePlatformDto,
-  TimelineStepDto,
+  TimelineTaskDto,
 } from './types';
 
 /** Lowercase, collapse anything that isn't `[a-z0-9]` into a single hyphen, and trim leading/trailing hyphens. */
@@ -36,12 +36,12 @@ export function createStableMilestoneKey(
 }
 
 /**
- * Builds the key of a checklist step from its phase key and its position. Unlike a milestone's key it is positional,
- * since a step is a bare title that may be reworded: ticks recorded against it stay put as long as new steps are
+ * Builds the key of a checklist task from its phase key and its position. Unlike a milestone's key it is positional,
+ * since a task is a bare title that may be reworded: ticks recorded against it stay put as long as new tasks are
  * added at the end.
  */
-export function createStableStepKey(phaseKey: number, stepIndex: number): string {
-  return `${phaseKey}-${stepIndex}`;
+export function createStableTaskKey(phaseKey: number, taskIndex: number): string {
+  return `${phaseKey}-${taskIndex}`;
 }
 
 /** Resolves a milestone dot's background tone to a concrete color, or `undefined` when unset. */
@@ -81,14 +81,14 @@ export type MappedTimelineMilestone<TIcon> = Omit<TimelineMilestoneDto, 'iconId'
 /** A `TimelinePhaseDto` with its opaque fields resolved to consumer-rendered output. */
 export type MappedTimelinePhase<TIcon, TPlatformItem, TFooter> = Omit<
   TimelinePhaseDto,
-  'iconId' | 'footerSlot' | 'platforms' | 'milestones' | 'steps'
+  'iconId' | 'footerSlot' | 'platforms' | 'milestones' | 'tasks'
 > & {
   icon: TIcon;
   footer?: TFooter;
   platforms?: TPlatformItem[];
   milestones?: Array<MappedTimelineMilestone<TIcon>>;
-  /** The phase's `steps`, resolved: a key from the phase and the step's position, and the step's own fields. */
-  children?: Array<TimelineStepDto & { key: string }>;
+  /** The phase's `tasks`, resolved: a key from the phase and the task's position, and the task's own fields. */
+  children?: Array<TimelineTaskDto & { key: string }>;
 };
 
 /**
@@ -103,7 +103,7 @@ export function mapTimelinePhaseDto<TIcon, TPlatformItem, TFooter>(
   phaseDto: TimelinePhaseDto,
   renderers: TimelinePhaseRenderers<TIcon, TPlatformItem, TFooter>
 ): MappedTimelinePhase<TIcon, TPlatformItem, TFooter> {
-  const { iconId, footerSlot, platforms, milestones, steps, ...restPhase } = phaseDto;
+  const { iconId, footerSlot, platforms, milestones, tasks, ...restPhase } = phaseDto;
   const { renderIcon, renderPlatform, resolveFooter } = renderers;
 
   return {
@@ -111,7 +111,7 @@ export function mapTimelinePhaseDto<TIcon, TPlatformItem, TFooter>(
     icon: renderIcon(iconId),
     footer: resolveFooter?.(footerSlot),
     platforms: platforms?.map(renderPlatform),
-    children: steps?.map((step, index) => ({ ...step, key: createStableStepKey(phaseDto.key, index) })),
+    children: tasks?.map((task, index) => ({ ...task, key: createStableTaskKey(phaseDto.key, index) })),
     milestones: milestones?.map((milestone) => {
       const { iconId: milestoneIconId, dotBgTone, ...restMilestone } = milestone;
       return {

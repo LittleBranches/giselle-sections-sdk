@@ -9,7 +9,7 @@ const phase = (key: number): TimelinePhaseDto => ({
   title: `Phase ${key}`,
   side: 'left',
   iconId: 'solar:rocket-bold',
-  steps: [{ title: 'A step' }],
+  tasks: [{ title: 'A task' }],
 });
 
 describe('createStaticTimelineProvider', () => {
