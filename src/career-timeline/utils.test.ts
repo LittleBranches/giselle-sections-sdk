@@ -4,20 +4,10 @@ import {
   createPlatformLogoItem,
   createStableMilestoneKey,
   createStableStepKey,
-  mapTimelinePhaseDraft,
   mapTimelinePhaseDto,
   resolveDotBackground,
 } from './utils';
-import type {
-  TimelineMilestoneDraft,
-  TimelineMilestoneDto,
-  TimelinePhaseDraft,
-  TimelinePhaseDto,
-  TimelinePlatformDraft,
-  TimelinePlatformDto,
-  TimelineStepDraft,
-  TimelineStepDto,
-} from './types';
+import type { TimelinePhaseDto } from './types';
 
 describe('createStableMilestoneKey', () => {
   it('builds a key from phase key, date, and title', () => {
@@ -64,7 +54,7 @@ describe('resolveDotBackground', () => {
 });
 
 describe('createPlatformIconItem', () => {
-  it('builds an icon platform draft', () => {
+  it('builds an icon platform DTO', () => {
     expect(createPlatformIconItem('logos:react', 'React')).toEqual({
       kind: 'icon',
       iconId: 'logos:react',
@@ -74,7 +64,7 @@ describe('createPlatformIconItem', () => {
 });
 
 describe('createPlatformLogoItem', () => {
-  it('builds a logo platform draft', () => {
+  it('builds a logo platform DTO', () => {
     expect(createPlatformLogoItem('/logos/acme.svg', 'Acme')).toEqual({
       kind: 'logo',
       src: '/logos/acme.svg',
@@ -87,7 +77,7 @@ describe('mapTimelinePhaseDto', () => {
   const renderIcon = (iconId: string) => `icon:${iconId}`;
 
   it('maps a full phase with milestones, platforms, and a footer', () => {
-    const phaseDraft: TimelinePhaseDto = {
+    const phaseDto: TimelinePhaseDto = {
       key: 7,
       title: 'Senior role',
       side: 'left',
@@ -104,7 +94,7 @@ describe('mapTimelinePhaseDto', () => {
       ],
     };
 
-    const mapped = mapTimelinePhaseDto(phaseDraft, {
+    const mapped = mapTimelinePhaseDto(phaseDto, {
       renderIcon,
       renderPlatform: (platform) =>
         typeof platform === 'string' ? platform : `platform:${JSON.stringify(platform)}`,
@@ -125,20 +115,20 @@ describe('mapTimelinePhaseDto', () => {
       icon: 'icon:star',
       dotBg: '#111',
     });
-    // Non-draft fields pass through untouched.
+    // Other fields pass through untouched.
     expect(mapped.title).toBe('Senior role');
     expect(mapped.side).toBe('left');
   });
 
   it('maps a minimal phase with no platforms, milestones, or footer', () => {
-    const phaseDraft: TimelinePhaseDto = {
+    const phaseDto: TimelinePhaseDto = {
       key: 1,
       title: 'Started out',
       side: 'right',
       iconId: 'seedling',
     };
 
-    const mapped = mapTimelinePhaseDto(phaseDraft, {
+    const mapped = mapTimelinePhaseDto(phaseDto, {
       renderIcon,
       renderPlatform: (platform) => platform,
     });
@@ -151,7 +141,7 @@ describe('mapTimelinePhaseDto', () => {
   });
 
   it('passes through every field the real TimelinePhase/TimelineMilestone types support beyond the original hand-picked subset — regression coverage for the completeness fix', () => {
-    const phaseDraft: TimelinePhaseDto = {
+    const phaseDto: TimelinePhaseDto = {
       key: 3,
       title: 'Scenario phase',
       shortTitle: 'Scenario',
@@ -181,7 +171,7 @@ describe('mapTimelinePhaseDto', () => {
       ],
     };
 
-    const mapped = mapTimelinePhaseDto(phaseDraft, {
+    const mapped = mapTimelinePhaseDto(phaseDto, {
       renderIcon,
       renderPlatform: (platform) => platform,
     });
@@ -219,7 +209,7 @@ describe('mapTimelinePhaseDto checklist steps', () => {
     renderIcon: (iconId: string) => `icon:${iconId}`,
     renderPlatform: () => 'platform',
   };
-  const draft: TimelinePhaseDto = {
+  const dto: TimelinePhaseDto = {
     key: 7,
     title: 'A phase',
     side: 'left',
@@ -228,7 +218,7 @@ describe('mapTimelinePhaseDto checklist steps', () => {
   };
 
   it('resolves steps into children with positional keys, and leaves no steps behind', () => {
-    const mapped = mapTimelinePhaseDto(draft, renderers);
+    const mapped = mapTimelinePhaseDto(dto, renderers);
     expect(mapped.children).toEqual([
       { key: '7-0', title: 'First step' },
       { key: '7-1', title: 'Second step', description: 'More', done: true },
@@ -237,25 +227,14 @@ describe('mapTimelinePhaseDto checklist steps', () => {
   });
 
   it('gives no children to a phase without steps', () => {
-    const { steps: _steps, ...bare } = draft;
+    const { steps: _steps, ...bare } = dto;
     expect(mapTimelinePhaseDto(bare, renderers).children).toBeUndefined();
   });
 });
 
-describe('deprecated Draft names', () => {
-  it('keeps the old function name pointing at the new one', () => {
-    expect(mapTimelinePhaseDraft).toBe(mapTimelinePhaseDto);
-  });
-
-  it('keeps the old type names assignable to and from the new ones', () => {
-    const phase: TimelinePhaseDto = { key: 1, title: 'A', side: 'left', iconId: 'x' };
-    const asDraft: TimelinePhaseDraft = phase;
-    const milestone: TimelineMilestoneDto = { date: '2020', title: 'M', iconId: 'x' };
-    const milestoneDraft: TimelineMilestoneDraft = milestone;
-    const platform: TimelinePlatformDto = 'label';
-    const platformDraft: TimelinePlatformDraft = platform;
-    const step: TimelineStepDto = { title: 'S' };
-    const stepDraft: TimelineStepDraft = step;
-    expect([asDraft, milestoneDraft, platformDraft, stepDraft]).toHaveLength(4);
+describe('no Draft names', () => {
+  it('exports no Draft-named function', async () => {
+    const exported = await import('./index');
+    expect(Object.keys(exported).filter((name) => /draft/i.test(name))).toEqual([]);
   });
 });

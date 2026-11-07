@@ -162,19 +162,3 @@ export type TimelineColumnLabels = {
   /** Mirrors `TimelineColumnLabels.rightSubtitle` — optional short-description line below the right label. */
   rightSubtitle?: string;
 };
-
-// ----------------------------------------------------------------------
-// The DTOs were first called `…Draft`. The old names stay as aliases for now.
-
-/** @deprecated Renamed `TimelinePlatformDto`. */
-export type TimelinePlatformDraft = TimelinePlatformDto;
-/** @deprecated Renamed `TimelineMilestoneDto`. */
-export type TimelineMilestoneDraft = TimelineMilestoneDto;
-/** @deprecated Renamed `TimelineStepDto`. */
-export type TimelineStepDraft = TimelineStepDto;
-/** @deprecated Renamed `TimelinePhotoDto`. */
-export type TimelinePhotoDraft = TimelinePhotoDto;
-/** @deprecated Renamed `TimelineClientDto`. */
-export type TimelineClientDraft = TimelineClientDto;
-/** @deprecated Renamed `TimelinePhaseDto`. */
-export type TimelinePhaseDraft = TimelinePhaseDto;
