@@ -5,9 +5,19 @@ import {
   createStableMilestoneKey,
   createStableStepKey,
   mapTimelinePhaseDraft,
+  mapTimelinePhaseDto,
   resolveDotBackground,
 } from './utils';
-import type { TimelinePhaseDraft } from './types';
+import type {
+  TimelineMilestoneDraft,
+  TimelineMilestoneDto,
+  TimelinePhaseDraft,
+  TimelinePhaseDto,
+  TimelinePlatformDraft,
+  TimelinePlatformDto,
+  TimelineStepDraft,
+  TimelineStepDto,
+} from './types';
 
 describe('createStableMilestoneKey', () => {
   it('builds a key from phase key, date, and title', () => {
@@ -73,11 +83,11 @@ describe('createPlatformLogoItem', () => {
   });
 });
 
-describe('mapTimelinePhaseDraft', () => {
+describe('mapTimelinePhaseDto', () => {
   const renderIcon = (iconId: string) => `icon:${iconId}`;
 
   it('maps a full phase with milestones, platforms, and a footer', () => {
-    const phaseDraft: TimelinePhaseDraft = {
+    const phaseDraft: TimelinePhaseDto = {
       key: 7,
       title: 'Senior role',
       side: 'left',
@@ -94,7 +104,7 @@ describe('mapTimelinePhaseDraft', () => {
       ],
     };
 
-    const mapped = mapTimelinePhaseDraft(phaseDraft, {
+    const mapped = mapTimelinePhaseDto(phaseDraft, {
       renderIcon,
       renderPlatform: (platform) =>
         typeof platform === 'string' ? platform : `platform:${JSON.stringify(platform)}`,
@@ -121,14 +131,14 @@ describe('mapTimelinePhaseDraft', () => {
   });
 
   it('maps a minimal phase with no platforms, milestones, or footer', () => {
-    const phaseDraft: TimelinePhaseDraft = {
+    const phaseDraft: TimelinePhaseDto = {
       key: 1,
       title: 'Started out',
       side: 'right',
       iconId: 'seedling',
     };
 
-    const mapped = mapTimelinePhaseDraft(phaseDraft, {
+    const mapped = mapTimelinePhaseDto(phaseDraft, {
       renderIcon,
       renderPlatform: (platform) => platform,
     });
@@ -141,7 +151,7 @@ describe('mapTimelinePhaseDraft', () => {
   });
 
   it('passes through every field the real TimelinePhase/TimelineMilestone types support beyond the original hand-picked subset — regression coverage for the completeness fix', () => {
-    const phaseDraft: TimelinePhaseDraft = {
+    const phaseDraft: TimelinePhaseDto = {
       key: 3,
       title: 'Scenario phase',
       shortTitle: 'Scenario',
@@ -171,7 +181,7 @@ describe('mapTimelinePhaseDraft', () => {
       ],
     };
 
-    const mapped = mapTimelinePhaseDraft(phaseDraft, {
+    const mapped = mapTimelinePhaseDto(phaseDraft, {
       renderIcon,
       renderPlatform: (platform) => platform,
     });
@@ -204,12 +214,12 @@ describe('createStableStepKey', () => {
   });
 });
 
-describe('mapTimelinePhaseDraft checklist steps', () => {
+describe('mapTimelinePhaseDto checklist steps', () => {
   const renderers = {
     renderIcon: (iconId: string) => `icon:${iconId}`,
     renderPlatform: () => 'platform',
   };
-  const draft: TimelinePhaseDraft = {
+  const draft: TimelinePhaseDto = {
     key: 7,
     title: 'A phase',
     side: 'left',
@@ -218,7 +228,7 @@ describe('mapTimelinePhaseDraft checklist steps', () => {
   };
 
   it('resolves steps into children with positional keys, and leaves no steps behind', () => {
-    const mapped = mapTimelinePhaseDraft(draft, renderers);
+    const mapped = mapTimelinePhaseDto(draft, renderers);
     expect(mapped.children).toEqual([
       { key: '7-0', title: 'First step' },
       { key: '7-1', title: 'Second step', description: 'More', done: true },
@@ -228,6 +238,24 @@ describe('mapTimelinePhaseDraft checklist steps', () => {
 
   it('gives no children to a phase without steps', () => {
     const { steps: _steps, ...bare } = draft;
-    expect(mapTimelinePhaseDraft(bare, renderers).children).toBeUndefined();
+    expect(mapTimelinePhaseDto(bare, renderers).children).toBeUndefined();
+  });
+});
+
+describe('deprecated Draft names', () => {
+  it('keeps the old function name pointing at the new one', () => {
+    expect(mapTimelinePhaseDraft).toBe(mapTimelinePhaseDto);
+  });
+
+  it('keeps the old type names assignable to and from the new ones', () => {
+    const phase: TimelinePhaseDto = { key: 1, title: 'A', side: 'left', iconId: 'x' };
+    const asDraft: TimelinePhaseDraft = phase;
+    const milestone: TimelineMilestoneDto = { date: '2020', title: 'M', iconId: 'x' };
+    const milestoneDraft: TimelineMilestoneDraft = milestone;
+    const platform: TimelinePlatformDto = 'label';
+    const platformDraft: TimelinePlatformDraft = platform;
+    const step: TimelineStepDto = { title: 'S' };
+    const stepDraft: TimelineStepDraft = step;
+    expect([asDraft, milestoneDraft, platformDraft, stepDraft]).toHaveLength(4);
   });
 });

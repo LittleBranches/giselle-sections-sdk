@@ -2,10 +2,10 @@
  * @file career-timeline/types.ts
  * @description Provider/UI-agnostic types for a two-sided career timeline (phases with
  * optional milestones, platform badges, photos, and client logos).
- * @pattern Draft-first: a consuming app authors plain-data "draft" shapes (icon ids,
+ * @pattern DTO-first: a consuming app (or its provider) supplies plain-data DTOs (icon ids,
  * opaque footer slot ids, etc.) and resolves them into rendered output with its own
- * adapter, typically via `mapTimelinePhaseDraft` from `./utils`.
- * @usage import type { TimelinePhaseDraft, TimelineMilestoneDraft } from '@alexrebula/giselle-sections-data'
+ * adapter, typically via `mapTimelinePhaseDto` from `./utils`.
+ * @usage import type { TimelinePhaseDto, TimelineMilestoneDto } from '@alexrebula/giselle-sections-data'
  *
  * No JSX. No MUI. No personal content. Pure TypeScript — bring your own rendering layer.
  */
@@ -18,7 +18,7 @@ export type DotBackgroundTone = 'light' | 'dark';
  * `icon` resolves an icon id via the consumer's own icon renderer, and `logo` points
  * at an image asset (e.g. a company or product logo) instead of an icon.
  */
-export type TimelinePlatformDraft =
+export type TimelinePlatformDto =
   | string
   | { kind: 'icon'; iconId: string; label: string }
   | { kind: 'logo'; src: string; label: string };
@@ -31,7 +31,7 @@ export type TimelinePlatformDraft =
  * rule) plus its `Task` base type. Every optional field that type declares is
  * represented here, except `children` (recursive nested sub-tasks) — see the note below.
  */
-export type TimelineMilestoneDraft = {
+export type TimelineMilestoneDto = {
   date: string;
   shortTitle?: string;
   title: string;
@@ -50,7 +50,7 @@ export type TimelineMilestoneDraft = {
   dotTooltip?: string;
   // Deliberately excluded: `children` (recursive `Task[]` sub-items). Unused by every
   // known consumer today and would require this SDK to also model an unbounded,
-  // self-referential Task-draft shape. Add it if a real consumer ever needs it —
+  // self-referential Task DTO shape. Add it if a real consumer ever needs it —
   // don't build it speculatively.
 };
 
@@ -58,27 +58,27 @@ export type TimelineMilestoneDraft = {
  * One checklist step of a timeline phase: a plain sub-item a person can tick off. The SDK never stores whether it is
  * done in a place of its own: `done` only seeds the state when the content already says so.
  */
-export type TimelineStepDraft = {
+export type TimelineStepDto = {
   title: string;
   description?: string;
-  /** Seeds the step as done. Ticks a person makes later are the consumer's own data, not part of the draft. */
+  /** Seeds the step as done. Ticks a person makes later are the consumer's own data, not part of the DTO. */
   done?: boolean;
 };
 
-export type TimelinePhotoDraft = { src: string; alt: string };
+export type TimelinePhotoDto = { src: string; alt: string };
 
-export type TimelineClientDraft = { name: string; logo: string };
+export type TimelineClientDto = { name: string; logo: string };
 
 /**
  * One phase (era, role, project, etc.) in a two-column career timeline. `iconId` and
  * `footerSlot` are opaque identifiers the SDK never interprets — a consumer's own
- * adapter resolves them to rendered output (see `mapTimelinePhaseDraft`).
+ * adapter resolves them to rendered output (see `mapTimelinePhaseDto`).
  *
  * Field-for-field audited against `giselle-mui`'s real `TimelinePhase` component type
  * (via its `Task` base type) — every optional field it declares is represented here,
- * except `children` (see `TimelineMilestoneDraft`'s note; the same reasoning applies).
+ * except `children` (see `TimelineMilestoneDto`'s note; the same reasoning applies).
  */
-export type TimelinePhaseDraft = {
+export type TimelinePhaseDto = {
   key: number;
   title: string;
   /** Mirrors `TimelinePhase.shortTitle` (inherited from `Task`) — collapsed-card label, falls back to `title`. */
@@ -91,22 +91,22 @@ export type TimelinePhaseDraft = {
   iconId: string;
   /** Opaque slot identifier a consumer resolves to its own rendered footer content (e.g. an audio-button component). The SDK never interprets this string. */
   footerSlot?: string;
-  platforms?: TimelinePlatformDraft[];
+  platforms?: TimelinePlatformDto[];
   /** Mirrors `TimelinePhase.platformsLabel` — label shown above the platform-icon strip. */
   platformsLabel?: string;
-  milestones?: TimelineMilestoneDraft[];
+  milestones?: TimelineMilestoneDto[];
   details?: string[];
   active?: boolean;
   /** Mirrors `TimelinePhase.activeLabel` — label for the pulsing active badge. */
   activeLabel?: string;
   hideDate?: boolean;
-  photos?: TimelinePhotoDraft[];
+  photos?: TimelinePhotoDto[];
   /** Mirrors `TimelinePhase.photo` — a single personal photo, distinct from `photos` (multiple). */
-  photo?: TimelinePhotoDraft;
-  clients?: TimelineClientDraft[];
+  photo?: TimelinePhotoDto;
+  clients?: TimelineClientDto[];
   clientsLabel?: string;
   /** Mirrors `TimelinePhase.projects` — a logo strip for the phase-holder's own projects/side-projects. */
-  projects?: TimelineClientDraft[];
+  projects?: TimelineClientDto[];
   /** Mirrors `TimelinePhase.projectsLabel` — label shown above the projects logo strip. */
   projectsLabel?: string;
   /** Mirrors `TimelinePhase.scenarioLabel` — badge label shown when `variant === 'scenario'`. */
@@ -122,13 +122,13 @@ export type TimelinePhaseDraft = {
   /** Mirrors `TimelinePhase.dotTooltip` — overrides the computed spine-dot tooltip. */
   dotTooltip?: string;
   /**
-   * The phase's checklist steps, in order: plain sub-items a person can tick off. `mapTimelinePhaseDraft` resolves
+   * The phase's checklist steps, in order: plain sub-items a person can tick off. `mapTimelinePhaseDto` resolves
    * them into `children`, keyed by position (`createStableStepKey`), so a consumer that records ticks by position
    * should add new steps at the end.
    */
-  steps?: TimelineStepDraft[];
+  steps?: TimelineStepDto[];
   // Deliberately excluded: `children` (recursive `Task[]` sub-items) — see
-  // `TimelineMilestoneDraft`'s note; the same reasoning applies here.
+  // `TimelineMilestoneDto`'s note; the same reasoning applies here.
 };
 
 /**
@@ -136,7 +136,7 @@ export type TimelinePhaseDraft = {
  *
  * Field-for-field audited against `giselle-mui`'s real `TimelineSidebar` component
  * type. Note: that real type declares `overline` as required; it's kept optional here
- * since the SDK's own `mapTimelinePhaseDraft` doesn't touch this type at all — it's
+ * since the SDK's own `mapTimelinePhaseDto` doesn't touch this type at all — it's
  * plain, already-serializable data with no `ReactNode` fields, so a consumer can
  * import the real component's own type directly instead of this one if it wants the
  * stricter contract.
@@ -162,3 +162,19 @@ export type TimelineColumnLabels = {
   /** Mirrors `TimelineColumnLabels.rightSubtitle` — optional short-description line below the right label. */
   rightSubtitle?: string;
 };
+
+// ----------------------------------------------------------------------
+// The DTOs were first called `…Draft`. The old names stay as aliases for now.
+
+/** @deprecated Renamed `TimelinePlatformDto`. */
+export type TimelinePlatformDraft = TimelinePlatformDto;
+/** @deprecated Renamed `TimelineMilestoneDto`. */
+export type TimelineMilestoneDraft = TimelineMilestoneDto;
+/** @deprecated Renamed `TimelineStepDto`. */
+export type TimelineStepDraft = TimelineStepDto;
+/** @deprecated Renamed `TimelinePhotoDto`. */
+export type TimelinePhotoDraft = TimelinePhotoDto;
+/** @deprecated Renamed `TimelineClientDto`. */
+export type TimelineClientDraft = TimelineClientDto;
+/** @deprecated Renamed `TimelinePhaseDto`. */
+export type TimelinePhaseDraft = TimelinePhaseDto;
