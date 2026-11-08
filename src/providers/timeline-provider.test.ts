@@ -1,7 +1,12 @@
 import { describe, expect, it } from 'vitest';
 
 import type { TimelinePhaseDto } from '../career-timeline';
-import { createStaticTimelineProvider } from './timeline-provider';
+import {
+  createStaticTimelineProvider,
+  MAX_TIMELINE_PHASE_TITLE_LENGTH,
+  parseTimelinePhaseTitle,
+  TimelineValidationError,
+} from './timeline-provider';
 import type { TimelineDataProvider } from './timeline-provider';
 
 const phase = (key: number): TimelinePhaseDto => ({
@@ -37,5 +42,27 @@ describe('createStaticTimelineProvider', () => {
     };
     const viaStatic: TimelineDataProvider = createStaticTimelineProvider([phase(3)]);
     expect(await fromBackend.getTimelinePhases()).toEqual(await viaStatic.getTimelinePhases());
+  });
+});
+
+describe('parseTimelinePhaseTitle', () => {
+  it('returns a valid title trimmed', () => {
+    expect(parseTimelinePhaseTitle('  New title  ')).toBe('New title');
+  });
+
+  it.each([['an empty string', ''], ['only spaces', '   '], ['a number', 5], ['null', null], ['undefined', undefined]])(
+    'rejects %s',
+    (_label, value) => {
+      expect(() => parseTimelinePhaseTitle(value)).toThrow(TimelineValidationError);
+    }
+  );
+
+  it('accepts the longest allowed title and rejects one character more', () => {
+    expect(parseTimelinePhaseTitle('a'.repeat(MAX_TIMELINE_PHASE_TITLE_LENGTH))).toHaveLength(
+      MAX_TIMELINE_PHASE_TITLE_LENGTH
+    );
+    expect(() => parseTimelinePhaseTitle('a'.repeat(MAX_TIMELINE_PHASE_TITLE_LENGTH + 1))).toThrow(
+      TimelineValidationError
+    );
   });
 });
