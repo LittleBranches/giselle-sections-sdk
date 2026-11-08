@@ -37,13 +37,7 @@ export class TimelineValidationError extends Error {
  * holds whatever the backend is.
  */
 export function parseTimelinePhaseTitle(value: unknown): string {
-  if (typeof value !== 'string') throw new TimelineValidationError('The title must be text.');
-  const title = value.trim();
-  if (title === '') throw new TimelineValidationError('The title cannot be empty.');
-  if (title.length > MAX_TIMELINE_PHASE_TITLE_LENGTH) {
-    throw new TimelineValidationError(`The title can be at most ${MAX_TIMELINE_PHASE_TITLE_LENGTH} characters.`);
-  }
-  return title;
+  return requiredText(value, 'title', MAX_TIMELINE_PHASE_TITLE_LENGTH);
 }
 
 /** The longest phase short title, description and date, and task title, in characters. */
