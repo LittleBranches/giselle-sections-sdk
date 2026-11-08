@@ -3,8 +3,15 @@ import { describe, expect, it } from 'vitest';
 import type { TimelinePhaseDto } from '../career-timeline';
 import {
   createStaticTimelineProvider,
+  MAX_TIMELINE_PHASE_DATE_LENGTH,
+  MAX_TIMELINE_PHASE_DESCRIPTION_LENGTH,
+  MAX_TIMELINE_PHASE_SHORT_TITLE_LENGTH,
   MAX_TIMELINE_PHASE_TITLE_LENGTH,
+  MAX_TIMELINE_TASK_TITLE_LENGTH,
+  parseTimelineOrder,
+  parseTimelinePhaseFields,
   parseTimelinePhaseTitle,
+  parseTimelineTaskTitle,
   TimelineValidationError,
 } from './timeline-provider';
 import type { TimelineDataProvider } from './timeline-provider';
@@ -64,5 +71,56 @@ describe('parseTimelinePhaseTitle', () => {
     expect(() => parseTimelinePhaseTitle('a'.repeat(MAX_TIMELINE_PHASE_TITLE_LENGTH + 1))).toThrow(
       TimelineValidationError
     );
+  });
+});
+
+describe('parseTimelinePhaseFields', () => {
+  const valid = { title: ' Title ', shortTitle: ' Short ', description: ' Words ', date: ' Nov 2026 ' };
+
+  it('returns every field trimmed', () => {
+    expect(parseTimelinePhaseFields(valid)).toEqual({ title: 'Title', shortTitle: 'Short', description: 'Words', date: 'Nov 2026' });
+  });
+
+  it('turns a blank or missing optional field into null', () => {
+    expect(parseTimelinePhaseFields({ title: 'T', shortTitle: '  ', description: undefined, date: null })).toEqual({
+      title: 'T',
+      shortTitle: null,
+      description: null,
+      date: null,
+    });
+  });
+
+  it('rejects a blank, missing or non-text title with a clear message', () => {
+    expect(() => parseTimelinePhaseFields({ ...valid, title: ' ' })).toThrow('The title cannot be empty.');
+    expect(() => parseTimelinePhaseFields({ ...valid, title: 4 })).toThrow('The title must be text.');
+    expect(() => parseTimelinePhaseFields(null)).toThrow(TimelineValidationError);
+  });
+
+  it('rejects an over-long field, naming it', () => {
+    expect(() => parseTimelinePhaseFields({ ...valid, shortTitle: 'a'.repeat(MAX_TIMELINE_PHASE_SHORT_TITLE_LENGTH + 1) })).toThrow('short title');
+    expect(() => parseTimelinePhaseFields({ ...valid, description: 'a'.repeat(MAX_TIMELINE_PHASE_DESCRIPTION_LENGTH + 1) })).toThrow('description');
+    expect(() => parseTimelinePhaseFields({ ...valid, date: 'a'.repeat(MAX_TIMELINE_PHASE_DATE_LENGTH + 1) })).toThrow('date');
+    expect(() => parseTimelinePhaseFields({ ...valid, description: 5 })).toThrow('must be text');
+  });
+});
+
+describe('parseTimelineTaskTitle', () => {
+  it('returns a valid title trimmed, and rejects blank, non-text and over-long ones', () => {
+    expect(parseTimelineTaskTitle('  Do it ')).toBe('Do it');
+    expect(() => parseTimelineTaskTitle('')).toThrow('The task title cannot be empty.');
+    expect(() => parseTimelineTaskTitle(null)).toThrow(TimelineValidationError);
+    expect(parseTimelineTaskTitle('a'.repeat(MAX_TIMELINE_TASK_TITLE_LENGTH))).toHaveLength(MAX_TIMELINE_TASK_TITLE_LENGTH);
+    expect(() => parseTimelineTaskTitle('a'.repeat(MAX_TIMELINE_TASK_TITLE_LENGTH + 1))).toThrow(TimelineValidationError);
+  });
+});
+
+describe('parseTimelineOrder', () => {
+  it('accepts a list of whole numbers', () => {
+    expect(parseTimelineOrder([3, 1, 2])).toEqual([3, 1, 2]);
+    expect(parseTimelineOrder([])).toEqual([]);
+  });
+
+  it.each([['not a list', 'x'], ['a fraction', [1.5]], ['text', ['1']], ['a repeat', [1, 1]]])('rejects %s', (_label, value) => {
+    expect(() => parseTimelineOrder(value)).toThrow(TimelineValidationError);
   });
 });
