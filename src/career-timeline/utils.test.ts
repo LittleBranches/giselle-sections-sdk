@@ -198,9 +198,9 @@ describe('mapTimelinePhaseDto', () => {
 });
 
 describe('createStableTaskKey', () => {
-  it('builds a key from the phase key and the task position', () => {
-    expect(createStableTaskKey(4, 0)).toBe('4-0');
-    expect(createStableTaskKey(4, 12)).toBe('4-12');
+  it('builds a key from the task id alone', () => {
+    expect(createStableTaskKey(41)).toBe('41');
+    expect(createStableTaskKey('task-a')).toBe('task-a');
   });
 });
 
@@ -214,16 +214,26 @@ describe('mapTimelinePhaseDto checklist tasks', () => {
     title: 'A phase',
     side: 'left',
     iconId: 'solar:rocket-bold',
-    tasks: [{ title: 'First task' }, { title: 'Second task', description: 'More', done: true }],
+    tasks: [
+      { id: 11, title: 'First task' },
+      { id: 4, title: 'Second task', description: 'More', done: true },
+    ],
   };
 
-  it('resolves tasks into children with positional keys, and leaves no tasks behind', () => {
+  it('resolves tasks into children keyed by their ids, and leaves no tasks behind', () => {
     const mapped = mapTimelinePhaseDto(dto, renderers);
     expect(mapped.children).toEqual([
-      { key: '7-0', title: 'First task' },
-      { key: '7-1', title: 'Second task', description: 'More', done: true },
+      { id: 11, key: '11', title: 'First task' },
+      { id: 4, key: '4', title: 'Second task', description: 'More', done: true },
     ]);
     expect('tasks' in mapped).toBe(false);
+  });
+
+  it('keeps a task key the same when tasks are reordered or one is removed', () => {
+    const reordered = mapTimelinePhaseDto({ ...dto, tasks: [...dto.tasks!].reverse() }, renderers);
+    expect(reordered.children?.map((child) => child.key)).toEqual(['4', '11']);
+    const removed = mapTimelinePhaseDto({ ...dto, tasks: dto.tasks!.slice(1) }, renderers);
+    expect(removed.children?.map((child) => child.key)).toEqual(['4']);
   });
 
   it('gives no children to a phase without tasks', () => {

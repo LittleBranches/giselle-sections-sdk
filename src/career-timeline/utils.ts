@@ -36,12 +36,11 @@ export function createStableMilestoneKey(
 }
 
 /**
- * Builds the key of a checklist task from its phase key and its position. Unlike a milestone's key it is positional,
- * since a task is a bare title that may be reworded: ticks recorded against it stay put as long as new tasks are
- * added at the end.
+ * Builds the key of a checklist task from its id, so the key stays the same when tasks are added, removed or
+ * reordered. The id is the consumer's own and must be unique among all tasks, not only within a phase.
  */
-export function createStableTaskKey(phaseKey: number, taskIndex: number): string {
-  return `${phaseKey}-${taskIndex}`;
+export function createStableTaskKey(taskId: string | number): string {
+  return String(taskId);
 }
 
 /** Resolves a milestone dot's background tone to a concrete color, or `undefined` when unset. */
@@ -87,7 +86,7 @@ export type MappedTimelinePhase<TIcon, TPlatformItem, TFooter> = Omit<
   footer?: TFooter;
   platforms?: TPlatformItem[];
   milestones?: Array<MappedTimelineMilestone<TIcon>>;
-  /** The phase's `tasks`, resolved: a key from the phase and the task's position, and the task's own fields. */
+  /** The phase's `tasks`, resolved: a key from the task's id, and the task's own fields. */
   children?: Array<TimelineTaskDto & { key: string }>;
 };
 
@@ -111,7 +110,7 @@ export function mapTimelinePhaseDto<TIcon, TPlatformItem, TFooter>(
     icon: renderIcon(iconId),
     footer: resolveFooter?.(footerSlot),
     platforms: platforms?.map(renderPlatform),
-    children: tasks?.map((task, index) => ({ ...task, key: createStableTaskKey(phaseDto.key, index) })),
+    children: tasks?.map((task) => ({ ...task, key: createStableTaskKey(task.id) })),
     milestones: milestones?.map((milestone) => {
       const { iconId: milestoneIconId, dotBgTone, ...restMilestone } = milestone;
       return {

@@ -61,6 +61,11 @@ export type TimelineMilestoneDto = {
  * done in a place of its own: `done` only seeds the state when the content already says so.
  */
 export type TimelineTaskDto = {
+  /**
+   * The task's identity: stable, never reused, and independent of where the task sits in its phase. A consumer that
+   * records ticks against a task records them against this id, so tasks can be added, removed and reordered freely.
+   */
+  id: string | number;
   title: string;
   description?: string;
   /** Seeds the task as done. Ticks a person makes later are the consumer's own data, not part of the DTO. */
@@ -127,8 +132,7 @@ export type TimelinePhaseDto = {
   anchor?: string;
   /**
    * The phase's checklist tasks, in order: plain sub-items a person can tick off. `mapTimelinePhaseDto` resolves
-   * them into `children`, keyed by position (`createStableTaskKey`), so a consumer that records ticks by position
-   * should add new tasks at the end.
+   * them into `children`, each keyed by its own `id` (`createStableTaskKey`), so the order can change freely.
    */
   tasks?: TimelineTaskDto[];
   // Deliberately excluded: `children` (recursive `Task[]` sub-items) — see
