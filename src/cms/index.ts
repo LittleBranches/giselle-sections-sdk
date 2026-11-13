@@ -16,3 +16,5 @@ export * from './collect';
 export * from './layout-rules';
 export * from './in-memory-store';
 export * from './supabase-store';
+export * from './collection-adapter';
+export * from './cms-provider';

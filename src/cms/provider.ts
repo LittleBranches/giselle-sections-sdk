@@ -13,7 +13,7 @@ export type ResolveProblem = {
   sectionKey: string;
   slotKey: string | null;
   itemId: string | null;
-  reason: 'unknown-template' | 'item-not-published' | 'unknown-type' | 'invalid-content';
+  reason: 'unknown-template' | 'item-not-published' | 'unknown-type' | 'invalid-content' | 'reference-too-deep' | 'reference-cycle';
   message: string;
 };
 
