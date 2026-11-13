@@ -140,7 +140,8 @@ function build(path: string, label: string, node: FieldNode, group: string, cont
 function buildFields(parentPath: string, node: FieldNode, group: string, context: Context): FieldConfig[] {
   const fields: FieldConfig[] = [];
   for (const [name, child] of Object.entries(node.shape ?? {})) {
-    if (child.kind === 'unsupported') continue;
+    // a field the generator cannot build, or a list of them, is left out: a custom type draws it with its own form
+    if (child.kind === 'unsupported' || (child.kind === 'array' && child.element?.kind === 'unsupported')) continue;
     fields.push(build(parentPath ? `${parentPath}.${name}` : name, humanise(name), child, group, context));
   }
   return sortByOrder(fields);

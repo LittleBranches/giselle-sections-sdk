@@ -138,3 +138,17 @@ describe('describeFields: order and groups', () => {
     expect(describeFields(type)[0]).toMatchObject({ group: 'Layout', fields: [{ path: 'box.x', group: 'Layout' }] });
   });
 });
+
+describe('describeFields: a field the generator cannot build', () => {
+  const answer = z.union([z.string(), z.object({ text: z.string(), bold: z.boolean() })]);
+
+  it('leaves out a list whose elements are unsupported, instead of throwing (a custom type keeps its own form)', () => {
+    const type = make(z.object({ title: z.string(), paragraphs: z.array(answer) }), { custom: true });
+    expect(() => describeFields(type)).not.toThrow();
+    expect(describeFields(type).map((field) => field.path)).toEqual(['title']);
+  });
+
+  it('registers a custom type that has such a list', () => {
+    expect(() => make(z.object({ title: z.string(), paragraphs: z.array(answer) }), { custom: true })).not.toThrow();
+  });
+});
