@@ -25,7 +25,7 @@ describe('package metadata for publishing', () => {
     expect(meta.scripts['prepack']).toContain('npm run build');
   });
 
-  it('ships only the build, the readme and the licence', () => {
-    expect(meta.files).toEqual(['dist', 'README.md', 'LICENSE']);
+  it('ships only the build, the shared migration files, the readme and the licence', () => {
+    expect(meta.files).toEqual(['dist', 'supabase', 'README.md', 'LICENSE']);
   });
 });
