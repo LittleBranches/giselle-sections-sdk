@@ -15,3 +15,4 @@ export * from './describe-fields';
 export * from './collect';
 export * from './layout-rules';
 export * from './in-memory-store';
+export * from './supabase-store';
