@@ -10,3 +10,6 @@ export * from './errors';
 export * from './store';
 export * from './provider';
 export * from './editor';
+export * from './create-registry';
+export * from './describe-fields';
+export * from './collect';
