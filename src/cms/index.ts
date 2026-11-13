@@ -13,3 +13,5 @@ export * from './editor';
 export * from './create-registry';
 export * from './describe-fields';
 export * from './collect';
+export * from './layout-rules';
+export * from './in-memory-store';
