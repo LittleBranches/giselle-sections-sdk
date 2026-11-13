@@ -7,12 +7,14 @@ import {
   ContentReferenceError,
   ContentReferencedError,
   LayoutRuleError,
+  PageTakenError,
 } from './errors';
 import type { ContentItem, ContentItemSummary, ItemUsage, ItemVersionRecord } from './item';
 import { newContentItemSchema } from './item';
 import { checkLayoutSlots, formatLayoutProblem } from './layout-rules';
 import { NEUTRAL_LANGUAGE, UNIVERSAL_FALLBACK_LANGUAGE, type EntryLanguage } from './languages';
 import { keySchema } from './keys';
+import { cmsPageChangesSchema, newCmsPageSchema, type CmsPage } from './page';
 import { pageLayoutContentSchema, type PageLayout, type PageLayoutContent, type PageLayoutVersionRecord } from './page-layout';
 import type { CmsContentStore, ResolvedItemRecord } from './store';
 import { BUILTIN_SECTION_TEMPLATES, sectionTemplateSchema, type SectionTemplate, type SectionTemplateRecord } from './template';
@@ -22,7 +24,7 @@ export type CmsRole = 'visitor' | 'member' | 'editor' | 'owner';
 
 export type ChangeLogEntry = {
   at: string;
-  action: 'publish_item' | 'publish_layout' | 'delete_item' | 'save_template' | 'register_asset';
+  action: 'publish_item' | 'publish_layout' | 'delete_item' | 'save_template' | 'register_asset' | 'create_page' | 'update_page';
   subjectId: string;
   language: string | null;
   version: number | null;
@@ -67,6 +69,7 @@ export function createInMemoryCmsStore(options: InMemoryCmsStoreOptions = {}): I
   const items = new Map<string, ContentItem>();
   const entries = new Map<string, EntryRecord>(); // `${itemId}/${language}`
   const layouts = new Map<string, LayoutRecord>(); // by page key
+  const pages = new Map<string, Omit<CmsPage, 'publishedVersion'>>(); // by page key
   const refs: RefRow[] = [];
   const assets = new Map<string, Asset>();
   const bucket = new Set<string>();
@@ -507,12 +510,67 @@ export function createInMemoryCmsStore(options: InMemoryCmsStoreOptions = {}): I
     },
   };
 
+  // ---- pages ------------------------------------------------------------------------------------------------------
+
+  const invalid = (what: string, error: { issues: readonly { path: readonly PropertyKey[]; message: string }[] }) => {
+    const issues = error.issues.map((issue) => `${issue.path.map(String).join('.') || `(${what})`}: ${issue.message}`);
+    return new ContentValidationError(`That ${what} is not valid: ${issues.join('; ')}`, issues);
+  };
+  const asPage = (page: Omit<CmsPage, 'publishedVersion'>): CmsPage => ({ ...copy(page), publishedVersion: layouts.get(page.pageKey)?.published ?? null });
+  const slugTaken = (slug: string, except?: string) => [...pages.values()].some((page) => page.slug === slug && page.pageKey !== except);
+
+  const pageStore: CmsContentStore['pages'] = {
+    async create(input) {
+      requireEditor();
+      const parsed = newCmsPageSchema.safeParse(input);
+      if (!parsed.success) throw invalid('page', parsed.error);
+      const { pageKey, slug, titles, descriptions } = parsed.data;
+      if (layouts.has(pageKey)) throw new PageTakenError('pageKey', pageKey);
+      if (slugTaken(slug)) throw new PageTakenError('slug', slug);
+      appendLayoutVersion(pageKey, { sections: [] }, [], null, null, false);
+      const at = stamp();
+      const page = { id: newId(), pageKey, slug, titles, descriptions: descriptions ?? {}, createdAt: at, updatedAt: at };
+      pages.set(pageKey, page);
+      record('create_page', page.id, null, null);
+      return asPage(page);
+    },
+    async update(pageKey, changes) {
+      requireEditor();
+      const parsed = cmsPageChangesSchema.safeParse(changes);
+      if (!parsed.success) throw invalid('page', parsed.error);
+      const page = pages.get(pageKey);
+      if (!page) throw new ContentNotFoundError('page', pageKey);
+      if (parsed.data.slug !== undefined && slugTaken(parsed.data.slug, pageKey)) throw new PageTakenError('slug', parsed.data.slug);
+      const next = {
+        ...page,
+        ...(parsed.data.slug !== undefined ? { slug: parsed.data.slug } : {}),
+        ...(parsed.data.titles !== undefined ? { titles: parsed.data.titles } : {}),
+        ...(parsed.data.descriptions !== undefined ? { descriptions: parsed.data.descriptions } : {}),
+        updatedAt: stamp(),
+      };
+      pages.set(pageKey, next);
+      record('update_page', page.id, null, null);
+      return asPage(next);
+    },
+    async list() {
+      if (!canEdit()) return [];
+      return [...pages.values()].sort((a, b) => a.slug.localeCompare(b.slug)).map(asPage);
+    },
+    async readBySlug(slug, preview) {
+      const page = [...pages.values()].find((candidate) => candidate.slug === slug);
+      if (!page) return null;
+      const layout = await layoutStore.read(page.pageKey, preview);
+      return layout ? { page: asPage(page), layout } : null;
+    },
+  };
+
   return {
     ...createInMemoryContentStore(),
     items: itemStore,
     layouts: layoutStore,
     templates: templateStore,
     assets: assetStore,
+    pages: pageStore,
     setRole(next) {
       role = next;
     },

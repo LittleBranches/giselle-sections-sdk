@@ -30,15 +30,17 @@ export const CMS_ERROR_CODES = {
   layoutIncomplete: 'CM007',
   /** A reference that would make an item reach itself through other items. Detail: the ids on the cycle as JSON. -> `ContentReferenceError` (`cycle`) */
   cycle: 'CM008',
+  /** A page's address or page key is already taken. Detail: `{ "field": "slug" | "pageKey", "value": "..." }`. -> `PageTakenError` (`taken`) */
+  pageTaken: 'CM009',
 } as const;
 export type CmsErrorCode = (typeof CMS_ERROR_CODES)[keyof typeof CMS_ERROR_CODES];
 
-/** Thrown when an item, layout, template or asset is not there. */
+/** Thrown when an item, layout, template, asset or page is not there. */
 export class ContentNotFoundError extends Error {
-  readonly kind: 'item' | 'layout' | 'template' | 'asset';
+  readonly kind: 'item' | 'layout' | 'template' | 'asset' | 'page';
   readonly id: string;
 
-  constructor(kind: 'item' | 'layout' | 'template' | 'asset', id: string) {
+  constructor(kind: 'item' | 'layout' | 'template' | 'asset' | 'page', id: string) {
     super(`There is no ${kind} "${id}".`);
     this.name = 'ContentNotFoundError';
     this.kind = kind;
@@ -105,5 +107,30 @@ export class CollectionConflictError<T = unknown> extends Error {
     super('This record changed since you opened it. Nothing was saved.');
     this.name = 'CollectionConflictError';
     this.current = current;
+  }
+}
+
+/**
+ * Thrown when a page cannot have the address or page key it asks for: `taken` by another page or layout (the database
+ * says so), or `reserved` because the site serves that address from a fixed route (the provider says so, from the
+ * site's list). Nothing was saved.
+ */
+export class PageTakenError extends Error {
+  readonly field: 'slug' | 'pageKey';
+  readonly value: string;
+  readonly reason: 'taken' | 'reserved';
+
+  constructor(field: 'slug' | 'pageKey', value: string, reason: 'taken' | 'reserved' = 'taken') {
+    super(
+      reason === 'reserved'
+        ? `The address "${value}" is used by a fixed page of this site. Choose another one.`
+        : field === 'slug'
+        ? `The address "${value}" is already used by another page. Choose another one.`
+        : `The page key "${value}" is already used by another page or layout. Choose another one.`,
+    );
+    this.name = 'PageTakenError';
+    this.field = field;
+    this.value = value;
+    this.reason = reason;
   }
 }

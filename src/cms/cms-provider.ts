@@ -4,7 +4,9 @@ import { collectItemRefs, collectLayoutItemIds } from './collect';
 import type { ContentType } from './content-type';
 import { cmsLanguageSchema, NEUTRAL_LANGUAGE, type CmsLanguage, type EntryLanguage } from './languages';
 import { MAX_REFERENCE_DEPTH, type ResolvedItem } from './item';
-import { pageLayoutContentSchema, type PageLayoutContent } from './page-layout';
+import { pageLayoutContentSchema, type PageLayoutContent, type PageLayoutReadRecord } from './page-layout';
+import { PageTakenError } from './errors';
+import { cmsPageChangesSchema, newCmsPageSchema, pageMeta, slugSchema } from './page';
 import type { CreateCmsProvider, ResolveProblem, ResolvedPage, ResolvedSection } from './provider';
 import type { ContentTypeRegistry } from './registry';
 import type { ResolvedItemRecord } from './store';
@@ -44,7 +46,14 @@ const isMarker = (value: unknown): value is { $ref: string } =>
  * failing, and asks the store for drafts only when the caller says `preview`; the store decides whether that caller
  * may have them. Invalid content is never returned to a page and never handed to the store.
  */
-export const createCmsProvider: CreateCmsProvider = ({ store, registry }) => {
+/** `/Blog/posts/` -> `blog`: a catch-all route's single-segment slug clashes with a fixed route's first segment. */
+const reservedSlugOf = (path: string): string => path.trim().replace(/^\/+/, '').split('/')[0]!.toLowerCase();
+
+export const createCmsProvider: CreateCmsProvider = ({ store, registry, reservedSlugs = [] }) => {
+  const reserved = new Set(reservedSlugs.map(reservedSlugOf).filter(Boolean));
+  const assertFreeSlug = (slug: string | undefined) => {
+    if (slug !== undefined && reserved.has(slug)) throw new PageTakenError('slug', slug, 'reserved');
+  };
   const entryLanguage = (type: ContentType, language: CmsLanguage): EntryLanguage => (type.translatable ? language : NEUTRAL_LANGUAGE);
 
   function assertDocument(type: ContentType): void {
@@ -153,6 +162,50 @@ export const createCmsProvider: CreateCmsProvider = ({ store, registry }) => {
     if (!problems.some((existing) => existing.sectionKey === full.sectionKey && existing.slotKey === full.slotKey && existing.itemId === full.itemId && existing.reason === full.reason)) problems.push(full);
   };
 
+  /** Resolves a layout version into a page: templates, items, references, problems. */
+  async function resolvePage(record: PageLayoutReadRecord, language: CmsLanguage, preview: boolean): Promise<ResolvedPage> {
+    const layout = parseLayout(record.content, 'read');
+    const templates = new Map((await store.templates.list()).map(({ createdAt: _c, updatedAt: _u, ...template }) => [template.key, template as SectionTemplate]));
+    const problems: ResolveProblem[] = [];
+    const known = layout.sections.filter((section) => templates.has(section.template));
+    for (const section of layout.sections) {
+      if (!templates.has(section.template)) {
+        problems.push({ sectionKey: section.key, slotKey: null, itemId: null, reason: 'unknown-template', message: `The template "${section.template}" does not exist.` });
+      }
+    }
+
+    const resolved = resolution(language, preview);
+    await resolved.load(collectLayoutItemIds({ sections: known }));
+
+    const sections: ResolvedSection[] = known.map((section) => {
+      const template = templates.get(section.template) as SectionTemplate;
+      const slots: Record<string, ResolvedItem[]> = {};
+      for (const slot of template.slots) {
+        const shown: ResolvedItem[] = [];
+        for (const itemId of section.slots[slot.key] ?? []) {
+          const report = reportInto(problems, section.key, slot.key);
+          const itemRecord = resolved.fetched.get(itemId);
+          if (!itemRecord) {
+            report({ itemId, reason: 'item-not-published', message: `The item ${itemId} has nothing to show${preview ? '' : ' (it is not published)'}.` });
+            continue;
+          }
+          const result = resolved.validated(itemRecord);
+          if (!result.ok) {
+            report({ itemId, reason: result.reason, message: result.message });
+            continue;
+          }
+          const item = resolved.expand(itemId, [], 0, report);
+          if (item) shown.push(item);
+        }
+        slots[slot.key] = shown;
+      }
+      return { key: section.key, anchor: section.anchor ?? null, template, slots };
+    });
+
+    const page: ResolvedPage = { pageKey: record.pageKey, version: record.version, isDraft: record.isDraft, language, sections, problems };
+    return page;
+  }
+
   return {
     // ---- the public reads -----------------------------------------------------------------------------------
 
@@ -161,49 +214,22 @@ export const createCmsProvider: CreateCmsProvider = ({ store, registry }) => {
       const preview = options?.preview === true;
       // The store decides who may read drafts: anyone who may not (a visitor who sends the flag) gets the published page.
       const record = await store.layouts.read(pageKey, preview);
-      if (!record) return null;
-      const isDraft = record.isDraft;
-      const layout = parseLayout(record.content, 'read');
+      return record ? resolvePage(record, language, preview) : null;
+    },
 
-      const templates = new Map((await store.templates.list()).map(({ createdAt: _c, updatedAt: _u, ...template }) => [template.key, template as SectionTemplate]));
-      const problems: ResolveProblem[] = [];
-      const known = layout.sections.filter((section) => templates.has(section.template));
-      for (const section of layout.sections) {
-        if (!templates.has(section.template)) {
-          problems.push({ sectionKey: section.key, slotKey: null, itemId: null, reason: 'unknown-template', message: `The template "${section.template}" does not exist.` });
-        }
-      }
+    async pageBySlug(slug, language, options) {
+      assertLanguage(language);
+      const preview = options?.preview === true;
+      // an address that cannot be a page's is a 404 without asking the store
+      if (!slugSchema.safeParse(slug).success) return null;
+      const found = await store.pages.readBySlug(slug, preview);
+      if (!found) return null;
+      const page = await resolvePage(found.layout, language, preview);
+      return { ...page, slug: found.page.slug, meta: pageMeta(found.page, language) };
+    },
 
-      const resolved = resolution(language, preview);
-      await resolved.load(collectLayoutItemIds({ sections: known }));
-
-      const sections: ResolvedSection[] = known.map((section) => {
-        const template = templates.get(section.template) as SectionTemplate;
-        const slots: Record<string, ResolvedItem[]> = {};
-        for (const slot of template.slots) {
-          const shown: ResolvedItem[] = [];
-          for (const itemId of section.slots[slot.key] ?? []) {
-            const report = reportInto(problems, section.key, slot.key);
-            const itemRecord = resolved.fetched.get(itemId);
-            if (!itemRecord) {
-              report({ itemId, reason: 'item-not-published', message: `The item ${itemId} has nothing to show${preview ? '' : ' (it is not published)'}.` });
-              continue;
-            }
-            const result = resolved.validated(itemRecord);
-            if (!result.ok) {
-              report({ itemId, reason: result.reason, message: result.message });
-              continue;
-            }
-            const item = resolved.expand(itemId, [], 0, report);
-            if (item) shown.push(item);
-          }
-          slots[slot.key] = shown;
-        }
-        return { key: section.key, anchor: section.anchor ?? null, template, slots };
-      });
-
-      const page: ResolvedPage = { pageKey, version: record.version, isDraft, language, sections, problems };
-      return page;
+    async templates() {
+      return (await store.templates.list()).map(({ createdAt: _c, updatedAt: _u, ...template }) => template as SectionTemplate);
     },
 
     async item<T>(itemId: string, type: ContentType<T>, language: CmsLanguage, options?: { preview?: boolean }) {
@@ -217,10 +243,6 @@ export const createCmsProvider: CreateCmsProvider = ({ store, registry }) => {
       const problems: ResolveProblem[] = [];
       const item = resolved.expand(itemId, [], 0, reportInto(problems, '', null));
       return (item as ResolvedItem<T> | null) ?? null;
-    },
-
-    async templates() {
-      return (await store.templates.list()).map(({ createdAt: _c, updatedAt: _u, ...template }) => template as SectionTemplate);
     },
 
     // ---- items ----------------------------------------------------------------------------------------------
@@ -286,6 +308,30 @@ export const createCmsProvider: CreateCmsProvider = ({ store, registry }) => {
     publishLayout: (pageKey, version) => store.layouts.publish(pageKey, version),
     restoreLayout: (pageKey, version, baseVersion) => store.layouts.restore(pageKey, version, baseVersion),
     reorderSlot: (pageKey, sectionKey, slotKey, itemIds, baseVersion) => store.layouts.reorderSlot(pageKey, sectionKey, slotKey, itemIds, baseVersion),
+
+    // ---- pages ----------------------------------------------------------------------------------------------
+
+    pages: () => store.pages.list(),
+
+    async createPage(page) {
+      const parsed = newCmsPageSchema.safeParse(page);
+      if (!parsed.success) {
+        const issues = issuesOf(parsed.error);
+        throw new ContentValidationError(`That page is not valid: ${issues.join('; ')}`, issues);
+      }
+      assertFreeSlug(parsed.data.slug);
+      return store.pages.create(parsed.data);
+    },
+
+    async updatePage(pageKey, changes) {
+      const parsed = cmsPageChangesSchema.safeParse(changes);
+      if (!parsed.success) {
+        const issues = issuesOf(parsed.error);
+        throw new ContentValidationError(`That page is not valid: ${issues.join('; ')}`, issues);
+      }
+      assertFreeSlug(parsed.data.slug);
+      return store.pages.update(pageKey, parsed.data);
+    },
 
     // ---- templates and assets -------------------------------------------------------------------------------
 

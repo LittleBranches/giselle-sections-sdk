@@ -10,7 +10,7 @@ const d = createDatabase();
 const { run, admin, must, makeItem, saveAndPublish, sql } = d;
 const editor = as(EDITOR);
 
-const TABLES = ["cms_items", "cms_item_entries", "cms_item_versions", "cms_layouts", "cms_layout_versions", "cms_templates", "cms_assets", "cms_references", "cms_change_log"];
+const TABLES = ["cms_items", "cms_item_entries", "cms_item_versions", "cms_layouts", "cms_layout_versions", "cms_templates", "cms_assets", "cms_references", "cms_change_log", "cms_pages"];
 
 let item: string;
 let target: string;
@@ -138,6 +138,7 @@ describe("grants as catalog facts", () => {
       ["cms_layout_versions", "changed_by"], ["cms_layout_versions", "changed_by_email"],
       ["cms_assets", "created_by"], ["cms_assets", "created_by_email"],
       ["cms_references", "target_item_id"], ["cms_references", "source_id"],
+      ["cms_pages", "created_by"], ["cms_pages", "created_by_email"], ["cms_pages", "updated_by"], ["cms_pages", "updated_by_email"],
     ];
     for (const [table, column] of hidden) {
       expect((await admin(`select has_column_privilege('${role}', 'public.${table}', '${column}', 'SELECT') as ok`)).rows[0]!.ok, `${role} ${table}.${column}`).toBe(false);
@@ -151,6 +152,7 @@ describe("grants as catalog facts", () => {
     expect(await readable("cms_layouts")).toBe("created_at,id,page_key,published_version");
     expect(await readable("cms_layout_versions")).toBe("changed_at,content,layout_id,restored_from,status,version");
     expect(await readable("cms_assets")).toBe("bucket,bytes,created_at,height,id,label,mime,path,width");
+    expect(await readable("cms_pages")).toBe("created_at,descriptions,id,layout_id,page_key,slug,titles,updated_at");
   });
 
   it("only the change log is readable by a signed-in role as a whole, and only by editors through its policy", async () => {
@@ -167,24 +169,25 @@ describe("grants as catalog facts", () => {
   it("function grants: everyone, signed-in only, or nobody", async () => {
     const executable = async (role: string) =>
       (await admin(`select p.proname from pg_proc p where p.pronamespace = 'public'::regnamespace and p.proname like 'cms\\_%' and p.prorettype <> 'trigger'::regtype and has_function_privilege('${role}', p.oid, 'EXECUTE') order by 1`)).rows.map((r) => r.proname);
-    expect(await executable("anon")).toEqual(["cms_list_templates", "cms_read_layout", "cms_read_published", "cms_resolve_items"]);
+    expect(await executable("anon")).toEqual(["cms_list_templates", "cms_read_layout", "cms_read_page_by_slug", "cms_read_published", "cms_resolve_items"]);
     expect(await executable("authenticated")).toEqual(
       [
         "cms_create_item", "cms_delete_item", "cms_list_items", "cms_list_layout_versions", "cms_list_layouts", "cms_list_templates", "cms_list_usages", "cms_list_versions",
         "cms_publish_item", "cms_publish_layout", "cms_read_layout", "cms_read_layout_newest", "cms_read_newest", "cms_read_published", "cms_register_asset", "cms_reorder_slot",
         "cms_resolve_items", "cms_restore_item", "cms_restore_layout", "cms_save_item_draft", "cms_save_layout_draft", "cms_save_template", "cms_update_item",
+        "cms_create_page", "cms_list_pages", "cms_read_page_by_slug", "cms_update_page",
       ].sort(),
     );
     // the internal ones have no grant to anyone but their owner
     const nobody = (await admin(`select p.proname from pg_proc p where p.pronamespace = 'public'::regnamespace and p.proname like 'cms\\_%' and p.prorettype <> 'trigger'::regtype and not has_function_privilege('authenticated', p.oid, 'EXECUTE') order by 1`)).rows.map((r) => r.proname);
-    expect(nobody).toEqual(["cms_add_item_version", "cms_add_layout_version", "cms_check_layout", "cms_check_refs", "cms_counting_refs", "cms_deleting", "cms_raise_stale"].sort());
+    expect(nobody).toEqual(["cms_add_item_version", "cms_add_layout_version", "cms_check_layout", "cms_check_refs", "cms_counting_refs", "cms_deleting", "cms_raise_stale", "cms_check_page_args", "cms_page_row", "cms_raise_page_taken", "cms_valid_page_texts"].sort());
   });
 
   it("every function that changes or reveals data is security definer with an empty search_path", async () => {
     const rows = (await admin(`select proname, prosecdef, proconfig from pg_proc where pronamespace = 'public'::regnamespace and proname like 'cms\\_%' order by 1`)).rows;
     const invoker = rows.filter((r) => !r.prosecdef).map((r) => r.proname);
     expect(invoker).toEqual(
-      ["cms_deleting", "cms_forbid_change", "cms_forbid_template_delete", "cms_guard_delete", "cms_guard_item_update", "cms_guard_template_update", "cms_guard_version_update", "cms_list_templates", "cms_read_published"].sort(),
+      ["cms_deleting", "cms_forbid_change", "cms_forbid_template_delete", "cms_guard_delete", "cms_guard_item_update", "cms_guard_template_update", "cms_guard_version_update", "cms_list_templates", "cms_read_published", "cms_guard_page_update", "cms_valid_page_texts"].sort(),
     );
     for (const row of rows) expect(row.proconfig, row.proname).toEqual(["search_path=\"\""]);
   });

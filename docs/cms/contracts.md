@@ -34,11 +34,12 @@ type (code)  -->  item (database)  -->  slot of a section  -->  page layout (dat
 | `registry.ts` | `ContentTypeRegistry` (register, get, require, list), `ComponentResolver` |
 | `item.ts` | `ContentItem`, `ItemRef` (`itemRefSchema`), `ItemVersionRecord`, `ResolvedItem`, `ItemUsage`, `MAX_REFERENCE_DEPTH`, `CollectionAdapter`, `CollectionRecord` |
 | `template.ts` | `SectionTemplate`, `BUILTIN_TYPE_KEYS`, `BUILTIN_SECTION_TEMPLATES` |
-| `page-layout.ts` | `PageLayout`, `PageLayoutContent`, `layoutSectionSchema`, `PageLayoutVersionRecord`, limits |
+| `page-layout.ts` | `PageLayout`, `PageLayoutContent`, `layoutSectionSchema`, `PageLayoutVersionRecord`, `PageLayoutReadRecord`, limits |
+| `page.ts` | `CmsPage`, `NewCmsPage`, `CmsPageChanges`, `slugSchema`, `pageTitlesSchema`, `pageDescriptionsSchema`, `PageBySlugRecord`, `PageMeta`, `pageMeta()` (3.11) |
 | `asset.ts` | `Asset`, `NewAsset`, `assetRefSchema`, MIME and size limits |
-| `errors.ts` | `CMS_ERROR_CODES`, `ContentNotFoundError`, `ContentPermissionError`, `ContentReferencedError`, `ContentReferenceError`, `LayoutRuleError`, `CollectionConflictError` |
-| `store.ts` | `ItemStore`, `LayoutStore`, `TemplateStore`, `AssetStore`, `CmsContentStore extends ContentStore` |
-| `provider.ts` | `CmsReader`, `CmsEditor`, `CmsProvider`, `ResolvedPage`, `ResolveProblem`, `CreateCmsProvider` |
+| `errors.ts` | `CMS_ERROR_CODES`, `ContentNotFoundError`, `ContentPermissionError`, `ContentReferencedError`, `ContentReferenceError`, `LayoutRuleError`, `CollectionConflictError`, `PageTakenError` |
+| `store.ts` | `ItemStore`, `LayoutStore`, `TemplateStore`, `AssetStore`, `PageStore`, `CmsContentStore extends ContentStore` |
+| `provider.ts` | `CmsReader`, `CmsEditor`, `CmsProvider`, `ResolvedPage`, `ResolvedSlugPage`, `ResolveProblem`, `CreateCmsProvider` |
 | `editor.ts` | `FieldConfig` (what the generated editor builds a field from) |
 
 The existing content module (`defineSection`, `ContentStore`, `createContentProvider`) is unchanged by WP0 and keeps working. The errors `ContentConflictError` (a stale save, carrying the newer version) and `ContentValidationError` are reused for items and layouts, not duplicated.
@@ -168,11 +169,28 @@ Grants alone are not enough, because the security-definer functions run as the t
 
 `cms_items (type_key)`; `cms_item_entries (item_id, language)` unique; `cms_layouts (page_key)` unique; `cms_references (target_item_id)`; `cms_references (source_kind, source_id)`; `cms_assets (bucket, path)` unique; `cms_change_log (subject_id, at desc)`.
 
+### 3.11 `cms_pages` (pages an editor makes; file `20261117090000_cms_pages.sql`)
+
+A page an editor makes from the dashboard, served by a site's catch-all route. Its layout is an ordinary `cms_layouts` row (same versions, draft, publish, restore, slot rules); this table adds the address and the words around it. A site's fixed routes keep reading their layouts by page key and have no row here.
+
+| Column | Type | Rules |
+|---|---|---|
+| `id` | uuid | primary key |
+| `layout_id` | uuid not null unique | references `cms_layouts (id)` on delete cascade |
+| `page_key` | text not null unique | the layout's key, copied; slug check as `type_key`; never changes |
+| `slug` | text not null unique | the address: check `slug ~ '^[a-z0-9]+(-[a-z0-9]+)*$' and char_length(slug) <= 100` (lowercase kebab, one path segment) |
+| `titles` | jsonb not null | map of language code (`^[a-z]{2}$`) to text of 1 to 120 characters, `en` required (the fallback) |
+| `descriptions` | jsonb not null default `{}` | same map, 1 to 300 characters, all optional |
+| `created_at`, `created_by`, `created_by_email` | | as elsewhere |
+| `updated_at`, `updated_by`, `updated_by_email` | | the last change |
+
+The two maps are checked by `cms_valid_page_texts(jsonb, integer, boolean)` (immutable, used by the table checks and the functions). Trigger: only `slug`, `titles`, `descriptions` and the update stamp may change; no delete (decision D22). `cms_change_log.action` also allows `create_page` and `update_page`.
+
 ## 4. Functions
 
 All are `language plpgsql` (or `sql` where trivial), `security definer`, `set search_path = ''`, with every object schema-qualified, as in the existing entries. Each is revoked from `public, anon, authenticated` by name and then granted back only where listed. Each privileged function begins with its role check and raises `42501` (`Only editors and owners can change content` or `Only owners can ...`).
 
-Error codes (shared with `CMS_ERROR_CODES`, which maps each to an error class): `CE001` stale (the existing code; detail is the newest version as JSON, same keys as the existing `content_raise_stale`), `42501` permission, `22023` invalid argument, `CM001` not found, `CM002` still referenced (detail: usages JSON array), `CM003` dangling reference (detail: missing ids), `CM004` slot rule broken (detail: problems), `CM005` not reusable and already used elsewhere (detail: ids), `CM006` asset invalid, `CM007` layout incomplete at publish (detail: problems), `CM008` reference cycle (detail: ids on the cycle).
+Error codes (shared with `CMS_ERROR_CODES`, which maps each to an error class): `CE001` stale (the existing code; detail is the newest version as JSON, same keys as the existing `content_raise_stale`), `42501` permission, `22023` invalid argument, `CM001` not found, `CM002` still referenced (detail: usages JSON array), `CM003` dangling reference (detail: missing ids), `CM004` slot rule broken (detail: problems), `CM005` not reusable and already used elsewhere (detail: ids), `CM006` asset invalid, `CM007` layout incomplete at publish (detail: problems), `CM008` reference cycle (detail: ids on the cycle), `CM009` a page's slug or page key is taken (detail: `{ "field": "slug" | "pageKey", "value": "..." }`, from `20261117090000_cms_pages.sql`).
 
 ### 4.1 Reads for everyone (`anon` and `authenticated`)
 
@@ -219,6 +237,19 @@ Error codes (shared with `CMS_ERROR_CODES`, which maps each to an error class): 
 | `cms_delete_item(p_item_id uuid)` | void | collects the references that count (3.7) to the item; if any, raises `CM002` with them as detail and deletes nothing; otherwise sets `cms.deleting` locally, deletes the item (entries, versions and its own outgoing references cascade or are removed), writes `cms_change_log` |
 | `cms_save_template(p_key text, p_name text, p_container_type_key text, p_slots jsonb)` | the template row | upsert; validates `p_slots` as an array of slot definitions; cannot change `built_in`; writes the change log |
 
+### 4.4a Pages (`20261117090000_cms_pages.sql`)
+
+| Function | Grant | Returns | What it does |
+|---|---|---|---|
+| `cms_read_page_by_slug(p_slug text, p_preview boolean default false)` | `anon, authenticated` | `table (id, page_key, slug, titles, descriptions, published_version, created_at, updated_at, version, status, content, changed_at, is_draft)` | the page and the layout version to show: published only; with `p_preview` and `can_edit()` the newest, also of a page never published; no row (a 404) otherwise |
+| `cms_list_pages()` | `authenticated` | `table (id, page_key, slug, titles, descriptions, published_version, created_at, updated_at)` | every page by slug, for editors; empty for others |
+| `cms_create_page(p_page_key text, p_slug text, p_titles jsonb, p_descriptions jsonb default '{}')` | `authenticated`, `can_edit()` inside | the page, as `cms_list_pages` | 22023 on a bad key, slug, title or description; `CM009` if the key already names a layout (a fixed route's or a page's) or the slug is taken; makes the layout with an empty draft (version 1, `{"sections": []}`) and the page; logs `create_page` |
+| `cms_update_page(p_page_key text, p_slug text default null, p_titles jsonb default null, p_descriptions jsonb default null)` | `authenticated`, `can_edit()` inside | the page | null leaves a field unchanged; `CM001` (detail `{"kind": "page"}`) for an unknown page; `CM009` for a taken slug; logs `update_page` |
+
+Internal: `cms_page_row(uuid)`, `cms_raise_page_taken(text, text)`, `cms_check_page_args(text, jsonb, jsonb)`, `cms_valid_page_texts(jsonb, integer, boolean)`.
+
+**Reserved slugs are the SDK's check, not the database's.** The database does not know a site's routes. `createCmsProvider({ store, registry, reservedSlugs })` takes the site's fixed routes and refuses those slugs with `PageTakenError` (`reason: 'reserved'`) on create and on a slug change; each entry is matched on its first path segment, case and slashes ignored (`/blog/posts` reserves `blog`). A site whose routes carry a language prefix lists the language codes too.
+
 ### 4.5 Internal functions (no grants to anyone)
 
 `cms_raise_stale(p_kind text, p_id uuid)` (raises `CE001`, detail the newest version JSON, kind `item` or `layout`), `cms_add_item_version(...)`, `cms_add_layout_version(...)`, `cms_check_refs(p_source_kind text, p_source_id uuid, p_source_item_id uuid, p_refs uuid[])`, `cms_check_layout(p_content jsonb, p_for_publish boolean)`. Their names are not a contract; the public functions' names and signatures above are.
@@ -256,6 +287,7 @@ R = may select, with the rows named; empty = no access.
 | `cms_assets` | R columns `id, bucket, path, mime, bytes, width, height, label, created_at`, all rows (the bucket is public) | same | same |
 | `cms_references` | none | none | none (read through `cms_list_usages`) |
 | `cms_change_log` | none | R all, policy `can_edit()` | R all |
+| `cms_pages` | R columns `id, layout_id, page_key, slug, titles, descriptions, created_at, updated_at`, rows whose layout is published | same | same |
 
 Nothing is writable through the API by anyone. Not exposed to any API role: `created_by`, `created_by_email`, `changed_by`, `changed_by_email` (who saved what), which editors read through the functions of 4.2.
 
@@ -324,6 +356,7 @@ supabase/migrations/20261115000300_cms_images_bucket.sql      (idempotent)
 supabase/migrations/20261115000400_cms_tables.sql             (tables, indexes, triggers, RLS, grants)
 supabase/migrations/20261115000500_cms_functions.sql          (functions and their grants)
 supabase/migrations/20261115000600_cms_seed_templates.sql     (BUILTIN_SECTION_TEMPLATES, upserted)
+supabase/migrations/20261117090000_cms_pages.sql              (pages an editor makes, 3.11 and 4.4a; added later, not idempotent)
 ```
 
 A site copies them with an npm script that reads from `node_modules` (`cp node_modules/@littlebranches/giselle-sections-sdk/supabase/migrations/*.sql supabase/migrations/`) and has a test that the files in its own `supabase/migrations/` that carry the `_cms_` infix are byte-identical to the package's. During this epic, before the SDK is published, a site reads them through its local link to the SDK worktree. Later changes to the model are new files with later timestamps, never edits of these.
@@ -427,6 +460,11 @@ These were left open by the spec ("Left to settle while building"). Each is the 
 | D18 | Asset deletion. | None, ever, through the app (the bucket already forbids it); assets rows are append-only. |
 | D19 | Change log. | One `cms_change_log` for the new tables' publishes, deletes, template saves and asset registrations. The legacy publish log stays for legacy entries. |
 | D20 | Migration timestamps. | Fixed (`20261115...`), later than every existing migration of both sites; a site whose database already holds later migrations applies them with the tool's "include all" option. |
+| D21 | Dynamic pages: a slug on the layout, or a pages table. | A separate `cms_pages` table pointing at an ordinary layout (3.11): the layout tables stay as they were, fixed routes need no slug or title, and the page's words live beside its layout instead of inside a versioned document. Titles and descriptions are not versioned. |
+| D22 | Deleting a page. | Not in this slice: there is no function, and a trigger refuses a delete (layouts cannot be deleted either). |
+| D23 | Reserved slugs. | The SDK's check (the provider's `reservedSlugs`), since only the site knows its routes; the database refuses only duplicates. |
+| D24 | A page's address. | One lowercase kebab segment, unique per database, changeable; the page key is fixed at creation and must not already name any layout. |
+| D25 | A page read with the preview flag by a visitor. | The stores read through `cms_read_layout` (and `cms_read_page_by_slug`), granted to everyone; the database ignores the flag for non-editors, so a visitor gets the published page, never a permission error. |
 
 ### Contradictions and cautions found in the spec
 

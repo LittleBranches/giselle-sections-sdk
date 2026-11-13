@@ -8,6 +8,7 @@ import {
   ContentReferenceError,
   ContentReferencedError,
   LayoutRuleError,
+  PageTakenError,
   createSupabaseCmsStore,
   type CmsSupabaseClient,
 } from './index';
@@ -237,12 +238,46 @@ describe('layouts, templates, assets: functions and columns', () => {
   });
 });
 
+describe('pages: functions and rows', () => {
+  const pageRow = { id: id(7), page_key: 'about', slug: 'about-us', titles: { en: 'About' }, descriptions: {}, published_version: null, created_at: at, updated_at: at };
+  const page = { id: id(7), pageKey: 'about', slug: 'about-us', titles: { en: 'About' }, descriptions: {}, publishedVersion: null, createdAt: at, updatedAt: at };
+
+  it('creates, changes and lists pages through their functions', async () => {
+    const { store, calls } = fakeClient({ cms_create_page: { data: [pageRow] }, cms_update_page: { data: [{ ...pageRow, published_version: 2 }] }, cms_list_pages: { data: [pageRow] } });
+    expect(await store.pages.create({ pageKey: 'about', slug: 'about-us', titles: { en: 'About' } })).toEqual(page);
+    expect(await store.pages.update('about', { titles: { en: 'About us' } })).toEqual({ ...page, publishedVersion: 2 });
+    expect(await store.pages.list()).toEqual([page]);
+    expect(calls).toEqual([
+      { fn: 'cms_create_page', args: { p_page_key: 'about', p_slug: 'about-us', p_titles: { en: 'About' }, p_descriptions: {} } },
+      { fn: 'cms_update_page', args: { p_page_key: 'about', p_slug: null, p_titles: { en: 'About us' }, p_descriptions: null } },
+      { fn: 'cms_list_pages', args: {} },
+    ]);
+  });
+
+  it('reads a page by its address with the layout to show, passing the preview flag', async () => {
+    const { store, calls } = fakeClient({
+      cms_read_page_by_slug: (args) => ({ data: args?.p_slug === 'about-us' ? [{ ...pageRow, version: 1, status: 'draft', content: { sections: [] }, changed_at: at, is_draft: true }] : [] }),
+    });
+    expect(await store.pages.readBySlug('about-us', true)).toEqual({
+      page,
+      layout: { pageKey: 'about', version: 1, status: 'draft', isDraft: true, content: { sections: [] }, changedAt: at },
+    });
+    expect(await store.pages.readBySlug('nowhere', false)).toBeNull();
+    expect(calls.map((c) => c.args)).toEqual([{ p_slug: 'about-us', p_preview: true }, { p_slug: 'nowhere', p_preview: false }]);
+  });
+
+  it('names the page in a not-found error', async () => {
+    const { store } = fakeClient({ cms_update_page: { error: { code: 'CM001', message: 'm' } } });
+    expect(await rejects(store.pages.update('nope', { slug: 'x' }))).toMatchObject({ kind: 'page', id: 'nope' });
+  });
+});
+
 describe('error codes map to the error classes', () => {
   const failing = (code: string, details: unknown, message = 'db message') =>
     fakeClient({ cms_save_item_draft: { error: { code, message, details: details === undefined ? null : typeof details === 'string' ? details : JSON.stringify(details) } } }).store.items.saveDraft(id(1), 'en', {}, [], null);
 
   it('exposes the codes the contract names', () => {
-    expect(CMS_ERROR_CODES).toMatchObject({ stale: 'CE001', permission: '42501', invalid: '22023', notFound: 'CM001', referenced: 'CM002', danglingReference: 'CM003', slotRule: 'CM004', notReusable: 'CM005', assetInvalid: 'CM006', layoutIncomplete: 'CM007', cycle: 'CM008' });
+    expect(CMS_ERROR_CODES).toMatchObject({ stale: 'CE001', permission: '42501', invalid: '22023', notFound: 'CM001', referenced: 'CM002', danglingReference: 'CM003', slotRule: 'CM004', notReusable: 'CM005', assetInvalid: 'CM006', layoutIncomplete: 'CM007', cycle: 'CM008', pageTaken: 'CM009' });
   });
 
   it('CE001: a conflict carrying the newest version, from the camelCase detail (snake_case is read too)', async () => {
@@ -312,6 +347,15 @@ describe('error codes map to the error classes', () => {
       expect(error).toBeInstanceOf(LayoutRuleError);
       expect(error.issues).toEqual(['hero.banner: at most 1', 'x: no template']);
     }
+  });
+
+  it('CM009 -> page taken, naming the slug or the page key from the detail', async () => {
+    const slug = fakeClient({ cms_create_page: { error: { code: 'CM009', message: 'm', details: JSON.stringify({ field: 'slug', value: 'about' }) } } });
+    const error = await rejects(slug.store.pages.create({ pageKey: 'about', slug: 'about', titles: { en: 'About' } }));
+    expect(error).toBeInstanceOf(PageTakenError);
+    expect(error).toMatchObject({ field: 'slug', value: 'about', reason: 'taken' });
+    const key = fakeClient({ cms_create_page: { error: { code: 'CM009', message: 'm', details: JSON.stringify({ field: 'pageKey', value: 'home' }) } } });
+    expect(await rejects(key.store.pages.create({ pageKey: 'home', slug: 'x', titles: { en: 'X' } }))).toMatchObject({ field: 'pageKey', value: 'home' });
   });
 
   it('an unknown code is rethrown as a plain error with the message', async () => {

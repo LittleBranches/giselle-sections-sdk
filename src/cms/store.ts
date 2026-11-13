@@ -3,6 +3,7 @@ import type { Asset, NewAsset } from './asset';
 import type { ContentItem, ContentItemSummary, ItemUsage, ItemVersionRecord, NewContentItem } from './item';
 import type { EntryLanguage, CmsLanguage } from './languages';
 import type { PageLayout, PageLayoutReadRecord, PageLayoutVersionRecord } from './page-layout';
+import type { CmsPage, CmsPageChanges, NewCmsPage, PageBySlugRecord } from './page';
 import type { SectionTemplate, SectionTemplateRecord } from './template';
 
 /** An item's newest or published version, with the item's fields a visitor may see and the language it was actually found in. */
@@ -100,6 +101,24 @@ export interface AssetStore {
 }
 
 /**
+ * Pages an editor makes: a layout with an address (slug) and words per language. The store does not know a site's fixed
+ * routes; the provider refuses reserved slugs before it calls.
+ */
+export interface PageStore {
+  /** Editors: makes the page and its layout with an empty draft (version 1, no sections). `PageTakenError` if the slug or the page key is taken. */
+  create(page: NewCmsPage): Promise<CmsPage>;
+  /** Editors: changes the slug, titles or descriptions. `PageTakenError` for a taken slug, `ContentNotFoundError` for an unknown page. */
+  update(pageKey: string, changes: CmsPageChanges): Promise<CmsPage>;
+  /** Editors: every page, published or not, by slug. Empty for a signed-in person who is not an editor (the Supabase function is not granted to visitors at all). */
+  list(): Promise<CmsPage[]>;
+  /**
+   * Anyone: a page by its address with the layout to show: published only, or with `preview: true` and a caller who
+   * may read drafts, the newest (also of a page never published). `null` if there is nothing to show.
+   */
+  readBySlug(slug: string, preview: boolean): Promise<PageBySlugRecord | null>;
+}
+
+/**
  * The store a CMS site needs: the existing section entries (`ContentStore`, unchanged) plus items, layouts, templates
  * and assets. Implementations: an in-memory one (tests, WP1) and a Supabase-backed one (WP1), both following the same
  * rules and the same error classes.
@@ -109,4 +128,5 @@ export interface CmsContentStore extends ContentStore {
   readonly layouts: LayoutStore;
   readonly templates: TemplateStore;
   readonly assets: AssetStore;
+  readonly pages: PageStore;
 }

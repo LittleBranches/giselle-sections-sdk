@@ -5,6 +5,7 @@ export * from './registry';
 export * from './item';
 export * from './template';
 export * from './page-layout';
+export * from './page';
 export * from './asset';
 export * from './errors';
 export * from './store';

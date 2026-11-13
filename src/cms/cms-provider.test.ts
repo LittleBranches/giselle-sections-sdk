@@ -7,6 +7,7 @@ import {
   ContentPermissionError,
   ContentReferencedError,
   MAX_REFERENCE_DEPTH,
+  PageTakenError,
   assetRefSchema,
   createCmsProvider,
   createContentTypeRegistry,
@@ -554,5 +555,48 @@ describe('templates and assets', () => {
     expect(await rejects(provider.registerAsset({ ...file, mime: 'image/gif' as never }))).toBeInstanceOf(ContentValidationError);
     const asset = await provider.registerAsset(file);
     expect(await provider.assets()).toEqual([asset]);
+  });
+});
+
+describe('pages an editor makes', () => {
+  const withReserved = () => createCmsProvider({ store, registry: types.registry, reservedSlugs: ['/Blog/posts', 'contact', ''] });
+
+  it('creates a page, refuses a reserved address on create and on change, and checks the input first', async () => {
+    const sited = withReserved();
+    const page = await sited.createPage({ pageKey: 'camp', slug: 'summer-camp', titles: { en: 'Summer camp' } });
+    expect(page).toMatchObject({ pageKey: 'camp', slug: 'summer-camp', publishedVersion: null });
+    expect(await sited.layoutDraft('camp')).toMatchObject({ version: 1, content: { sections: [] } });
+    for (const slug of ['blog', 'contact']) {
+      const refused = await rejects(sited.createPage({ pageKey: `p-${slug}`, slug, titles: { en: 'x' } }));
+      expect(refused).toBeInstanceOf(PageTakenError);
+      expect(refused).toMatchObject({ field: 'slug', value: slug, reason: 'reserved' });
+    }
+    expect(await rejects(sited.updatePage('camp', { slug: 'blog' }))).toMatchObject({ reason: 'reserved' });
+    expect(await rejects(sited.createPage({ pageKey: 'camp2', slug: 'Camp', titles: { en: 'x' } }))).toBeInstanceOf(ContentValidationError);
+    expect(await rejects(sited.createPage({ pageKey: 'camp2', slug: 'camp2', titles: {} } as never))).toBeInstanceOf(ContentValidationError);
+    expect(await rejects(sited.updatePage('camp', { titles: { de: 'x' } } as never))).toBeInstanceOf(ContentValidationError);
+    expect((await sited.pages()).map((p) => p.slug)).toEqual(['summer-camp']);
+    // without a reserved list, the same address is free
+    expect(await provider.createPage({ pageKey: 'blog', slug: 'blog', titles: { en: 'Blog' } })).toMatchObject({ slug: 'blog' });
+  });
+
+  it('serves a page by its address once published, with its title and description falling back to English, and drafts only in an editor\'s preview', async () => {
+    const banner = await publishedItem(types.banner, { title: 'Hello' });
+    await provider.createPage({ pageKey: 'camp', slug: 'summer-camp', titles: { en: 'Summer camp', de: 'Sommerlager' }, descriptions: { en: 'Two weeks' } });
+    await provider.saveLayoutDraft('camp', layoutWith([{ key: 'hero', template: 'banner-section', slots: { banner: [banner.id] } }]), 1);
+
+    const preview = await provider.pageBySlug('summer-camp', 'de', { preview: true });
+    expect(preview).toMatchObject({ pageKey: 'camp', slug: 'summer-camp', version: 2, isDraft: true, meta: { title: 'Sommerlager', titleLanguage: 'de', description: 'Two weeks' } });
+    expect(preview?.sections[0]?.slots.banner?.[0]).toMatchObject({ content: { title: 'Hello' } });
+    expect(await provider.pageBySlug('summer-camp', 'de')).toBeNull();
+    store.setRole('visitor');
+    expect(await provider.pageBySlug('summer-camp', 'de', { preview: true })).toBeNull();
+
+    store.setRole('editor');
+    await provider.publishLayout('camp', 2);
+    store.setRole('visitor');
+    expect(await provider.pageBySlug('summer-camp', 'sl')).toMatchObject({ version: 2, isDraft: false, meta: { title: 'Summer camp', titleLanguage: 'en', description: 'Two weeks' } });
+    expect(await provider.pageBySlug('nowhere', 'en')).toBeNull();
+    expect(await provider.pageBySlug('Not A Slug', 'en')).toBeNull();
   });
 });
