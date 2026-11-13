@@ -342,19 +342,18 @@ describe('reading a page', () => {
       expect(await provider.page('home', 'en', { preview: true })).toMatchObject({ isDraft: false, version: 1 });
     });
 
-    it('gives a visitor whose store refuses the newest-layout read the published page, not an error', async () => {
+    it('reads a page through the read every caller may make, never the editors-only newest-layout read', async () => {
       await simplePage();
-      const refuse = store.layouts.readNewest;
       store.layouts.readNewest = async () => {
         throw new ContentPermissionError('Only editors and owners can read drafts.');
       };
+      store.setRole('visitor');
       expect(await provider.page('home', 'en', { preview: true })).toMatchObject({ isDraft: false, version: 1 });
-      store.layouts.readNewest = refuse;
     });
 
-    it('does not hide any other failure of the newest-layout read', async () => {
+    it('does not hide a failure of the layout read', async () => {
       await simplePage();
-      store.layouts.readNewest = async () => {
+      store.layouts.read = async () => {
         throw new Error('boom');
       };
       await expect(provider.page('home', 'en', { preview: true })).rejects.toThrow('boom');

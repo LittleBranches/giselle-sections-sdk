@@ -389,6 +389,13 @@ export function createInMemoryCmsStore(options: InMemoryCmsStoreOptions = {}): I
       const live = layout?.versions.find((version) => version.version === layout.published);
       return layout && live ? asLayoutRecord(layout, live) : null;
     },
+    async read(pageKey, preview) {
+      const layout = layouts.get(pageKey);
+      if (!layout) return null;
+      const shown = preview && canEdit() ? lastOf(layout.versions) : layout.versions.find((version) => version.version === layout.published);
+      if (!shown) return null;
+      return { pageKey, version: shown.version, status: shown.status, isDraft: shown.status === 'draft', content: copy(shown.content), changedAt: shown.changedAt };
+    },
     async readNewest(pageKey) {
       if (!canEdit()) return null;
       const layout = layouts.get(pageKey);

@@ -2,7 +2,7 @@ import type { ContentStore } from '../content/store';
 import type { Asset, NewAsset } from './asset';
 import type { ContentItem, ContentItemSummary, ItemUsage, ItemVersionRecord, NewContentItem } from './item';
 import type { EntryLanguage, CmsLanguage } from './languages';
-import type { PageLayout, PageLayoutVersionRecord } from './page-layout';
+import type { PageLayout, PageLayoutReadRecord, PageLayoutVersionRecord } from './page-layout';
 import type { SectionTemplate, SectionTemplateRecord } from './template';
 
 /** An item's newest or published version, with the item's fields a visitor may see and the language it was actually found in. */
@@ -64,6 +64,12 @@ export interface ItemStore {
 export interface LayoutStore {
   /** The published layout of a page, or `null`. Never a draft. */
   readPublished(pageKey: string): Promise<PageLayoutVersionRecord | null>;
+  /**
+   * What a page shows, for anyone: the published layout; with `preview: true` and a caller who may read drafts, the
+   * newest. A caller who may not gets the published one whatever `preview` says (never an error). `null` if there is
+   * nothing to show.
+   */
+  read(pageKey: string, preview: boolean): Promise<PageLayoutReadRecord | null>;
   /** The newest version, draft or not. `null` if none or the caller may not read drafts. */
   readNewest(pageKey: string): Promise<PageLayoutVersionRecord | null>;
   listVersions(pageKey: string): Promise<Omit<PageLayoutVersionRecord, 'content'>[]>;

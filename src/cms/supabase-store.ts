@@ -12,7 +12,7 @@ import {
 import type { ContentItem, ContentItemSummary, ItemUsage, ItemVersionRecord } from './item';
 import { formatLayoutProblem, type LayoutProblem } from './layout-rules';
 import type { EntryLanguage } from './languages';
-import type { PageLayout, PageLayoutVersionRecord } from './page-layout';
+import type { PageLayout, PageLayoutReadRecord, PageLayoutVersionRecord } from './page-layout';
 import type { CmsContentStore, ResolvedItemRecord } from './store';
 import type { SectionTemplateRecord } from './template';
 
@@ -268,6 +268,13 @@ export function createSupabaseCmsStore(client: CmsSupabaseClient): CmsContentSto
     async readPublished(pageKey) {
       const row = firstRow(await call('cms_read_layout', { p_page_key: pageKey, p_preview: false }, { kind: 'layout', id: pageKey }));
       return row ? toLayoutVersion(pageKey, row) : null;
+    },
+    async read(pageKey, preview) {
+      // `cms_read_layout` is granted to visitors too; the database ignores `p_preview` for anyone who is not an editor.
+      const row = firstRow(await call('cms_read_layout', { p_page_key: pageKey, p_preview: preview }, { kind: 'layout', id: pageKey }));
+      return row
+        ? ({ pageKey, version: row.version, status: row.status, isDraft: Boolean(row.is_draft), content: row.content, changedAt: row.changed_at } satisfies PageLayoutReadRecord)
+        : null;
     },
     async readNewest(pageKey) {
       const row = firstRow(await call('cms_read_layout_newest', { p_page_key: pageKey }, { kind: 'layout', id: pageKey }));

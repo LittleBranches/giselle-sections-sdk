@@ -186,6 +186,17 @@ describe('layouts, templates, assets: functions and columns', () => {
     ]);
   });
 
+  it('reads a layout for a page through cms_read_layout with the preview flag, for every caller', async () => {
+    const { store, calls } = fakeClient({ cms_read_layout: { data: [{ version: 3, status: 'draft', content: { sections: [] }, changed_at: at, is_draft: true }] } });
+    expect(await store.layouts.read('home', true)).toEqual({ pageKey: 'home', version: 3, status: 'draft', isDraft: true, content: { sections: [] }, changedAt: at });
+    await store.layouts.read('home', false);
+    expect(calls).toEqual([
+      { fn: 'cms_read_layout', args: { p_page_key: 'home', p_preview: true } },
+      { fn: 'cms_read_layout', args: { p_page_key: 'home', p_preview: false } },
+    ]);
+    expect(await fakeClient({ cms_read_layout: { data: [] } }).store.layouts.read('home', true)).toBeNull();
+  });
+
   it('returns null for a layout with no published version', async () => {
     const { store } = fakeClient({ cms_read_layout: { data: [] } });
     expect(await store.layouts.readPublished('home')).toBeNull();

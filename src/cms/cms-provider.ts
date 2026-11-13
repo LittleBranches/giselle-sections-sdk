@@ -1,7 +1,6 @@
 import { ContentValidationError } from '../content/errors';
 import { newAssetSchema } from './asset';
 import { collectItemRefs, collectLayoutItemIds } from './collect';
-import { ContentPermissionError } from './errors';
 import type { ContentType } from './content-type';
 import { cmsLanguageSchema, NEUTRAL_LANGUAGE, type CmsLanguage, type EntryLanguage } from './languages';
 import { MAX_REFERENCE_DEPTH, type ResolvedItem } from './item';
@@ -160,19 +159,10 @@ export const createCmsProvider: CreateCmsProvider = ({ store, registry }) => {
     async page(pageKey, language, options) {
       assertLanguage(language);
       const preview = options?.preview === true;
-      const published = await store.layouts.readPublished(pageKey);
-      // The store decides who may read drafts: a caller it refuses (a visitor who sends the flag) gets the published page.
-      let newest: Awaited<ReturnType<typeof store.layouts.readNewest>> = null;
-      if (preview) {
-        try {
-          newest = await store.layouts.readNewest(pageKey);
-        } catch (error) {
-          if (!(error instanceof ContentPermissionError)) throw error;
-        }
-      }
-      const record = newest ?? published;
+      // The store decides who may read drafts: anyone who may not (a visitor who sends the flag) gets the published page.
+      const record = await store.layouts.read(pageKey, preview);
       if (!record) return null;
-      const isDraft = newest !== null && (published === null || newest.version !== published.version);
+      const isDraft = record.isDraft;
       const layout = parseLayout(record.content, 'read');
 
       const templates = new Map((await store.templates.list()).map(({ createdAt: _c, updatedAt: _u, ...template }) => [template.key, template as SectionTemplate]));

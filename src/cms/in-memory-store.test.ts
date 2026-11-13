@@ -549,6 +549,21 @@ describe('layouts', () => {
     expect(await rejects(store.layouts.restore('home', 9, 3))).toBeInstanceOf(ContentValidationError);
   });
 
+  it('reads a layout for a page: the published one, the newest only for an editor in preview, never an error', async () => {
+    expect(await store.layouts.read('home', true)).toBeNull();
+    await store.layouts.saveDraft('home', { sections: [] }, [], null);
+    expect(await store.layouts.read('home', false)).toBeNull();
+    expect(await store.layouts.read('home', true)).toMatchObject({ pageKey: 'home', version: 1, status: 'draft', isDraft: true });
+    await store.layouts.publish('home', 1);
+    await store.layouts.saveDraft('home', { sections: [{ key: 'a', template: 'banner-section', slots: {} }] }, [], 1);
+    expect(await store.layouts.read('home', true)).toMatchObject({ version: 2, isDraft: true });
+    expect(await store.layouts.read('home', false)).toMatchObject({ version: 1, status: 'published', isDraft: false });
+    for (const role of ['visitor', 'member'] as const) {
+      store.setRole(role);
+      expect(await store.layouts.read('home', true)).toMatchObject({ version: 1, isDraft: false });
+    }
+  });
+
   it('logs a layout publish once', async () => {
     await store.layouts.saveDraft('home', { sections: [] }, [], null);
     await store.layouts.publish('home', 1);
