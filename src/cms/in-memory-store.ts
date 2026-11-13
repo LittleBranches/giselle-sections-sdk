@@ -90,11 +90,6 @@ export function createInMemoryCmsStore(options: InMemoryCmsStoreOptions = {}): I
     return item;
   };
   const entryOf = (itemId: string, language: EntryLanguage) => entries.get(`${itemId}/${language}`);
-  const mustEntry = (itemId: string, language: EntryLanguage): EntryRecord => {
-    const entry = entryOf(itemId, language);
-    if (!entry) throw new ContentNotFoundError('item', itemId);
-    return entry;
-  };
   const mustLayout = (pageKey: string): LayoutRecord => {
     const layout = layouts.get(pageKey);
     if (!layout) throw new ContentNotFoundError('layout', pageKey);
@@ -129,6 +124,9 @@ export function createInMemoryCmsStore(options: InMemoryCmsStoreOptions = {}): I
     const { newest, published } = sourceVersions(row);
     return row.version === newest || row.version === published;
   };
+  /** The item (all its languages together) or the layout that holds a reference: one source for the CM005 rule. */
+  const holderOf = (row: RefRow): string =>
+    row.kind === 'item' ? ([...entries.values()].find((entry) => entry.id === row.sourceId)?.itemId ?? row.sourceId) : row.sourceId;
   const countingRefsTo = (target: string) => refs.filter((row) => row.target === target && counts(row));
   const refsOfVersion = (sourceId: string, version: number) => refs.filter((row) => row.sourceId === sourceId && row.version === version).map((row) => row.target);
   const outgoing = (itemId: string): string[] =>
@@ -162,7 +160,6 @@ export function createInMemoryCmsStore(options: InMemoryCmsStoreOptions = {}): I
     if (missing.length > 0) throw new ContentReferenceError('missing', missing);
     if (kind === 'item' && sourceItemId) {
       for (const target of ids) {
-        if (target === sourceItemId) throw new ContentReferenceError('cycle', [sourceItemId]);
         const path = pathBetween(target, sourceItemId);
         if (path) throw new ContentReferenceError('cycle', [sourceItemId, ...path]);
       }
@@ -235,8 +232,8 @@ export function createInMemoryCmsStore(options: InMemoryCmsStoreOptions = {}): I
         throw new ContentValidationError('A title is 1 to 120 characters.', ['title: 1 to 120 characters']);
       }
       if (changes.reusable === false && item.reusable) {
-        const places = new Set(countingRefsTo(itemId).map((row) => row.place));
-        if (places.size > 1) throw new ContentReferenceError('not-reusable', [itemId]);
+        const holders = new Set(countingRefsTo(itemId).map((row) => `${row.kind}:${holderOf(row)}`));
+        if (holders.size > 1) throw new ContentReferenceError('not-reusable', [...new Set(countingRefsTo(itemId).map(holderOf))]);
       }
       if (changes.title !== undefined) item.title = changes.title;
       if (changes.reusable !== undefined) item.reusable = changes.reusable;
@@ -249,7 +246,7 @@ export function createInMemoryCmsStore(options: InMemoryCmsStoreOptions = {}): I
         .filter((item) => !filter?.typeKey || item.typeKey === filter.typeKey)
         .map((item): ContentItemSummary => {
           const own = [...entries.values()].filter((entry) => entry.itemId === item.id && entry.published !== null);
-          return { ...copy(item), publishedLanguages: own.map((entry) => entry.language), usageCount: usagesOf(item.id).length };
+          return { ...copy(item), publishedLanguages: own.map((entry) => entry.language), usageCount: new Set(usagesOf(item.id).map((usage) => `${usage.sourceKind}:${usage.sourceId}`)).size };
         });
     },
 
@@ -307,16 +304,17 @@ export function createInMemoryCmsStore(options: InMemoryCmsStoreOptions = {}): I
 
     async saveDraft(itemId, language, content, targets, baseVersion) {
       requireEditor();
+      checkObject(content);
       const item = mustItem(itemId);
       checkItemLanguage(item, language);
-      checkObject(content);
       return appendItemVersion(item, language, content, targets, baseVersion, null);
     },
 
     async publish(itemId, language, version) {
       requireEditor();
       mustItem(itemId);
-      const entry = mustEntry(itemId, language);
+      const entry = entryOf(itemId, language);
+      if (!entry) throw new ContentValidationError('There is nothing to publish: the entry has no versions.', ['version: no such entry']);
       const latest = lastOf(entry.versions) as ItemVersionRecord;
       if (latest.version !== version) throw asConflict(latest);
       if (entry.published === version) return;
@@ -328,9 +326,9 @@ export function createInMemoryCmsStore(options: InMemoryCmsStoreOptions = {}): I
     async restore(itemId, language, version, baseVersion) {
       requireEditor();
       const item = mustItem(itemId);
-      const entry = mustEntry(itemId, language);
-      const old = entry.versions.find((candidate) => candidate.version === version);
-      if (!old) throw new ContentNotFoundError('item', itemId);
+      const entry = entryOf(itemId, language);
+      const old = entry?.versions.find((candidate) => candidate.version === version);
+      if (!entry || !old) throw new ContentValidationError(`There is no version ${version} to restore.`, ['version: no such version']);
       return appendItemVersion(item, language, old.content, refsOfVersion(entry.id, version), baseVersion, version);
     },
 
@@ -369,7 +367,8 @@ export function createInMemoryCmsStore(options: InMemoryCmsStoreOptions = {}): I
     const problems = checkLayoutSlots(content, { template: (key) => templates.get(key), itemType: (id) => items.get(id)?.typeKey }, forPublish);
     if (problems.length === 0) return;
     const issues = problems.map(formatLayoutProblem);
-    throw new LayoutRuleError(forPublish ? `This page is not complete enough to publish: ${issues.join('; ')}` : `This page breaks the rules of its templates: ${issues.join('; ')}`, issues);
+    const onlyMinimums = forPublish && problems.every((problem) => /^holds \d+ items; at least/.test(problem.message));
+    throw new LayoutRuleError(onlyMinimums ? `This page is not complete enough to publish: ${issues.join('; ')}` : `This page breaks the rules of its templates: ${issues.join('; ')}`, issues);
   }
   function appendLayoutVersion(pageKey: string, content: PageLayoutContent, targets: readonly string[], base: number | null, restoredFrom: number | null, checkSlots: boolean): number {
     const existing = layouts.get(pageKey);
@@ -430,7 +429,7 @@ export function createInMemoryCmsStore(options: InMemoryCmsStoreOptions = {}): I
       requireEditor();
       const layout = mustLayout(pageKey);
       const old = layout.versions.find((candidate) => candidate.version === version);
-      if (!old) throw new ContentNotFoundError('layout', pageKey);
+      if (!old) throw new ContentValidationError(`There is no version ${version} to restore.`, ['version: no such version']);
       return appendLayoutVersion(pageKey, parseLayout(old.content), refsOfVersion(layout.id, version), baseVersion, version, true);
     },
     async reorderSlot(pageKey, sectionKey, slotKey, itemIds, baseVersion) {
@@ -464,6 +463,9 @@ export function createInMemoryCmsStore(options: InMemoryCmsStoreOptions = {}): I
       if (!parsed.success) {
         const issues = parsed.error.issues.map((issue) => `${issue.path.map(String).join('.') || '(template)'}: ${issue.message}`);
         throw new ContentValidationError(`That template is not valid: ${issues.join('; ')}`, issues);
+      }
+      for (const slot of parsed.data.slots) {
+        if (slot.min > 100 || (slot.max ?? 0) > 100) throw new ContentValidationError('A slot holds at most 100 items.', [`slots.${slot.key}: min and max are at most 100`]);
       }
       const existing = templates.get(parsed.data.key);
       const saved: SectionTemplateRecord = { ...parsed.data, builtIn: existing?.builtIn ?? false, createdAt: existing?.createdAt ?? stamp(), updatedAt: stamp() };

@@ -77,13 +77,14 @@ function toVersionRecord(row: Row | undefined): ContentVersionRecord {
   };
 }
 
+/** A usage as the list function returns it (snake_case columns) or as the CM002 detail carries it (camelCase keys). */
 const toUsage = (row: Row): ItemUsage => ({
-  sourceKind: row.source_kind,
-  sourceId: row.source_id,
-  sourceLabel: row.source_label ?? '',
-  sourceLanguage: row.source_language ?? null,
-  inPublished: Boolean(row.in_published),
-  inNewest: Boolean(row.in_newest),
+  sourceKind: pick(row, 'source_kind', 'sourceKind'),
+  sourceId: pick(row, 'source_id', 'sourceId'),
+  sourceLabel: pick(row, 'source_label', 'sourceLabel') ?? '',
+  sourceLanguage: pick(row, 'source_language', 'sourceLanguage') ?? null,
+  inPublished: Boolean(pick(row, 'in_published', 'inPublished')),
+  inNewest: Boolean(pick(row, 'in_newest', 'inNewest')),
 });
 
 /** Turns what a database function raised into the error classes of `errors.ts`, by `CMS_ERROR_CODES`. */

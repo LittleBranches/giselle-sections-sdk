@@ -234,10 +234,15 @@ describe('error codes map to the error classes', () => {
     expect(CMS_ERROR_CODES).toMatchObject({ stale: 'CE001', permission: '42501', invalid: '22023', notFound: 'CM001', referenced: 'CM002', danglingReference: 'CM003', slotRule: 'CM004', notReusable: 'CM005', assetInvalid: 'CM006', layoutIncomplete: 'CM007', cycle: 'CM008' });
   });
 
-  it('CE001: a conflict carrying the newest version, from snake_case detail', async () => {
-    const error = (await rejects(failing('CE001', { version: 7, status: 'draft', content: { a: 1 }, changed_by: null, changed_by_email: 'x@example.test', changed_at: at, restored_from: 2 }))) as ContentConflictError;
+  it('CE001: a conflict carrying the newest version, from the camelCase detail (snake_case is read too)', async () => {
+    const error = (await rejects(failing('CE001', { version: 7, status: 'draft', content: { a: 1 }, changedBy: null, changedByEmail: 'x@example.test', changedAt: at, restoredFrom: 2 }))) as ContentConflictError;
     expect(error).toBeInstanceOf(ContentConflictError);
     expect(error.current).toEqual({ version: 7, status: 'draft', content: { a: 1 }, changedBy: null, changedByEmail: 'x@example.test', changedAt: at, restoredFrom: 2 });
+  });
+
+  it('CE001 also reads snake_case keys', async () => {
+    const error = (await rejects(failing('CE001', { version: 2, status: 'draft', content: {}, changed_by_email: 'y@example.test', changed_at: at, restored_from: 1 }))) as ContentConflictError;
+    expect(error.current).toMatchObject({ version: 2, changedByEmail: 'y@example.test', changedAt: at, restoredFrom: 1 });
   });
 
   it('CE001 with no readable detail still conflicts', async () => {
@@ -271,7 +276,7 @@ describe('error codes map to the error classes', () => {
   });
 
   it('CM002 -> referenced, with the usages parsed', async () => {
-    const usage = { source_kind: 'item', source_id: id(2), source_label: 'Parent', source_language: 'en', in_published: true, in_newest: true };
+    const usage = { sourceKind: 'item', sourceId: id(2), sourceLabel: 'Parent', sourceLanguage: 'en', inPublished: true, inNewest: true };
     const fake = fakeClient({ cms_delete_item: { error: { code: 'CM002', message: 'm', details: JSON.stringify([usage]) } } });
     const error = (await rejects(fake.store.items.deleteItem(id(1)))) as ContentReferencedError;
     expect(error).toBeInstanceOf(ContentReferencedError);

@@ -202,7 +202,7 @@ describe('items: publish', () => {
 
   it('refuses to publish a version that does not exist, or an entry that does not exist', async () => {
     const item = await newItem();
-    expect(await rejects(store.items.publish(item.id, 'en', 1))).toBeInstanceOf(ContentNotFoundError);
+    expect(await rejects(store.items.publish(item.id, 'en', 1))).toBeInstanceOf(ContentValidationError);
     await store.items.saveDraft(item.id, 'en', {}, [], null);
     expect(await rejects(store.items.publish(item.id, 'en', 7))).toBeInstanceOf(ContentConflictError);
   });
@@ -234,8 +234,8 @@ describe('items: restore', () => {
     await store.items.saveDraft(item.id, 'en', {}, [], null);
     await store.items.saveDraft(item.id, 'en', {}, [], 1);
     expect(await rejects(store.items.restore(item.id, 'en', 1, 1))).toBeInstanceOf(ContentConflictError);
-    expect(await rejects(store.items.restore(item.id, 'en', 9, 2))).toBeInstanceOf(ContentNotFoundError);
-    expect(await rejects(store.items.restore(item.id, 'de', 1, null))).toBeInstanceOf(ContentNotFoundError);
+    expect(await rejects(store.items.restore(item.id, 'en', 9, 2))).toBeInstanceOf(ContentValidationError);
+    expect(await rejects(store.items.restore(item.id, 'de', 1, null))).toBeInstanceOf(ContentValidationError);
     expect((await store.items.listVersions(item.id, 'en')).length).toBe(2);
   });
 
@@ -272,13 +272,15 @@ describe('references: saving', () => {
     const c = await newItem('section');
     const self = (await rejects(store.items.saveDraft(a.id, 'en', {}, [a.id], null))) as ContentReferenceError;
     expect(self).toMatchObject({ reason: 'cycle' });
-    expect(self.itemIds).toEqual([a.id]);
+    expect(self.itemIds).toEqual([a.id, a.id]);
 
     await store.items.saveDraft(a.id, 'en', {}, [b.id], null);
     await store.items.saveDraft(b.id, 'en', {}, [c.id], null);
     const circle = (await rejects(store.items.saveDraft(c.id, 'en', {}, [a.id], null))) as ContentReferenceError;
     expect(circle).toMatchObject({ reason: 'cycle' });
-    expect(circle.itemIds).toEqual(expect.arrayContaining([a.id, b.id, c.id]));
+    expect(circle.itemIds[0]).toBe(c.id);
+    expect(circle.itemIds[circle.itemIds.length - 1]).toBe(c.id);
+    expect(circle.itemIds).toEqual(expect.arrayContaining([a.id, b.id]));
     expect(await store.items.readNewest(c.id, 'en')).toBeNull();
   });
 
@@ -353,7 +355,7 @@ describe('items: updateItem reusable', () => {
     await store.items.updateItem(block.id, { reusable: true });
     await store.items.saveDraft(b.id, 'en', {}, [block.id], null);
     const error = await rejects(store.items.updateItem(block.id, { reusable: false }));
-    expect(error).toMatchObject({ reason: 'not-reusable' });
+    expect(error).toMatchObject({ reason: 'not-reusable', itemIds: expect.arrayContaining([a.id, b.id]) });
     expect((await store.items.listItems()).find((i) => i.id === block.id)?.reusable).toBe(true);
   });
 
@@ -381,6 +383,9 @@ describe('usages and delete', () => {
       { sourceKind: 'item', sourceId: source.id, sourceLabel: 'Parent', sourceLanguage: 'en', inPublished: true, inNewest: false },
       { sourceKind: 'layout', sourceId: expect.any(String), sourceLabel: 'home', sourceLanguage: null, inPublished: false, inNewest: true },
     ]);
+    expect((await store.items.listItems()).find((i) => i.id === target.id)?.usageCount).toBe(2);
+    await store.items.saveDraft(source.id, 'de', {}, [target.id], null);
+    expect((await store.items.listUsages(target.id)).filter((u) => u.sourceKind === 'item')).toHaveLength(2);
     expect((await store.items.listItems()).find((i) => i.id === target.id)?.usageCount).toBe(2);
   });
 
@@ -541,7 +546,7 @@ describe('layouts', () => {
     expect((await store.layouts.readPublished('home'))?.version).toBe(3);
     expect((await store.layouts.listLayouts())[0]).toMatchObject({ pageKey: 'home', publishedVersion: 3 });
     expect((await store.layouts.listVersions('home')).map((v) => v.version)).toEqual([3, 2, 1]);
-    expect(await rejects(store.layouts.restore('home', 9, 3))).toBeInstanceOf(ContentNotFoundError);
+    expect(await rejects(store.layouts.restore('home', 9, 3))).toBeInstanceOf(ContentValidationError);
   });
 
   it('logs a layout publish once', async () => {
@@ -591,6 +596,16 @@ describe('layouts', () => {
     await store.layouts.saveDraft('home', heroContent([banner.id]), [banner.id], 2);
     await store.layouts.publish('home', 3);
     expect((await store.layouts.readPublished('home'))?.version).toBe(3);
+  });
+
+  it('re-checks every slot rule at publish, not only the minimums, after a template changed', async () => {
+    const banner = await published('banner');
+    await store.layouts.saveDraft('home', heroContent([banner.id]), [banner.id], null);
+    await asOwner(() => store.templates.save({ ...BUILTIN_SECTION_TEMPLATES[0]!, slots: [{ key: 'banner', label: 'Banner', allowedTypeKeys: ['card'], min: 0, max: 1 }] }));
+    const error = (await rejects(store.layouts.publish('home', 1))) as LayoutRuleError;
+    expect(error).toBeInstanceOf(LayoutRuleError);
+    expect(error.issues[0]).toMatch(/not allowed/);
+    expect(error.message).toMatch(/breaks the rules/);
   });
 
   it('checks the stale version before the slot rules on publish', async () => {
@@ -648,6 +663,13 @@ describe('templates', () => {
     const builtIn = await store.templates.save({ ...BUILTIN_SECTION_TEMPLATES[0]!, name: 'Changed', builtIn: false });
     expect(builtIn).toMatchObject({ name: 'Changed', builtIn: true });
     expect(store.changeLog().filter((e) => e.action === 'save_template')).toHaveLength(3);
+  });
+
+  it('refuses a slot limit above 100', async () => {
+    store.setRole('owner');
+    const slot = { key: 'body', label: 'Body', allowedTypeKeys: ['card'], min: 0, max: 101 };
+    expect(await rejects(store.templates.save({ key: 'big', name: 'Big', containerTypeKey: 'section', slots: [slot], builtIn: false }))).toBeInstanceOf(ContentValidationError);
+    expect(await rejects(store.templates.save({ key: 'big', name: 'Big', containerTypeKey: 'section', slots: [{ ...slot, max: null, min: 101 }], builtIn: false }))).toBeInstanceOf(ContentValidationError);
   });
 
   it('refuses an invalid template', async () => {
