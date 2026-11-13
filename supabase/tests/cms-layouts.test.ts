@@ -278,7 +278,7 @@ describe("assets", () => {
   });
 
   it("anyone reads the safe columns of every asset; nobody changes or deletes one", async () => {
-    const seen = await run(visitor, `select id, bucket, path, mime, width, height, label, created_at from cms_assets`);
+    const seen = await run(visitor, `select id, bucket, path, mime, bytes, width, height, label, created_at from cms_assets`);
     expect(seen.rows).toHaveLength(1);
     expect((await admin(`update cms_assets set label = 'x'`)).error).toMatch(/append-only/);
     expect((await admin(`delete from cms_assets`)).error).toMatch(/append-only/);

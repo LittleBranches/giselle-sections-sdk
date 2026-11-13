@@ -97,7 +97,6 @@ describe("the tables, through the API", () => {
       `select changed_by from cms_item_versions`,
       `select changed_by_email from cms_item_versions`,
       `select changed_by_email from cms_layout_versions`,
-      `select bytes from cms_assets`,
       `select created_by_email from cms_assets`,
       `select * from cms_references`,
       `select target_item_id from cms_references`,

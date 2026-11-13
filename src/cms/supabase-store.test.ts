@@ -203,11 +203,11 @@ describe('layouts, templates, assets: functions and columns', () => {
   });
 
   it('reads assets from the table with exactly the columns visitors may select, and registers through cms_register_asset', async () => {
-    const row = { id: id(3), bucket: 'site-images', path: 'a.png', mime: 'image/png', width: 10, height: 20, label: 'A', created_at: at };
+    const row = { id: id(3), bucket: 'site-images', path: 'a.png', mime: 'image/png', bytes: 1234, width: 10, height: 20, label: 'A', created_at: at };
     const { store, calls, reads } = fakeClient({ 'table:cms_assets': { data: [row] }, cms_register_asset: { data: { ...row, bytes: 1234 } } });
-    const columns = 'id, bucket, path, mime, width, height, label, created_at';
+    const columns = 'id, bucket, path, mime, bytes, width, height, label, created_at';
     const listed = await store.assets.list();
-    expect(listed).toEqual([{ id: id(3), bucket: 'site-images', path: 'a.png', mime: 'image/png', bytes: 0, width: 10, height: 20, label: 'A', createdAt: at }]);
+    expect(listed).toEqual([{ id: id(3), bucket: 'site-images', path: 'a.png', mime: 'image/png', bytes: 1234, width: 10, height: 20, label: 'A', createdAt: at }]);
     expect(await store.assets.get(id(3))).toMatchObject({ id: id(3) });
     expect(reads).toEqual([
       { table: 'cms_assets', columns, filters: [] },

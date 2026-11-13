@@ -253,7 +253,7 @@ R = may select, with the rows named; empty = no access.
 | `cms_layouts` | R columns `id, page_key, published_version, created_at`, rows with a published version | same | same |
 | `cms_layout_versions` | R columns `layout_id, version, status, content, changed_at, restored_from`, only the published row | same | same |
 | `cms_templates` | R all columns, all rows | same | same |
-| `cms_assets` | R columns `id, bucket, path, mime, width, height, label, created_at`, all rows (the bucket is public) | same | same |
+| `cms_assets` | R columns `id, bucket, path, mime, bytes, width, height, label, created_at`, all rows (the bucket is public) | same | same |
 | `cms_references` | none | none | none (read through `cms_list_usages`) |
 | `cms_change_log` | none | R all, policy `can_edit()` | R all |
 

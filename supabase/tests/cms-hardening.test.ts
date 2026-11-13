@@ -136,7 +136,7 @@ describe("grants as catalog facts", () => {
       ["cms_items", "title"], ["cms_items", "created_by"], ["cms_items", "created_by_email"],
       ["cms_item_versions", "changed_by"], ["cms_item_versions", "changed_by_email"],
       ["cms_layout_versions", "changed_by"], ["cms_layout_versions", "changed_by_email"],
-      ["cms_assets", "bytes"], ["cms_assets", "created_by"], ["cms_assets", "created_by_email"],
+      ["cms_assets", "created_by"], ["cms_assets", "created_by_email"],
       ["cms_references", "target_item_id"], ["cms_references", "source_id"],
     ];
     for (const [table, column] of hidden) {
@@ -150,7 +150,7 @@ describe("grants as catalog facts", () => {
     expect(await readable("cms_item_versions")).toBe("changed_at,content,entry_id,restored_from,status,version");
     expect(await readable("cms_layouts")).toBe("created_at,id,page_key,published_version");
     expect(await readable("cms_layout_versions")).toBe("changed_at,content,layout_id,restored_from,status,version");
-    expect(await readable("cms_assets")).toBe("bucket,created_at,height,id,label,mime,path,width");
+    expect(await readable("cms_assets")).toBe("bucket,bytes,created_at,height,id,label,mime,path,width");
   });
 
   it("only the change log is readable by a signed-in role as a whole, and only by editors through its policy", async () => {

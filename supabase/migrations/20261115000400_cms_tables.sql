@@ -366,5 +366,5 @@ grant select (entry_id, version, status, content, changed_at, restored_from) on 
 grant select (id, page_key, published_version, created_at) on cms_layouts to anon, authenticated;
 grant select (layout_id, version, status, content, changed_at, restored_from) on cms_layout_versions to anon, authenticated;
 grant select on cms_templates to anon, authenticated;
-grant select (id, bucket, path, mime, width, height, label, created_at) on cms_assets to anon, authenticated;
+grant select (id, bucket, path, mime, bytes, width, height, label, created_at) on cms_assets to anon, authenticated;
 grant select on cms_change_log to authenticated;

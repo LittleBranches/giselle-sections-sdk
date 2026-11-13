@@ -34,11 +34,10 @@ export interface CmsSupabaseClient {
 
 /**
  * The columns of contracts 5.1 that a visitor may select, and nothing else (a select of a column with no grant fails
- * the whole read). `cms_assets.bytes` is not among them, so a file read from the table reports `bytes: 0`; the row
- * `cms_register_asset` returns carries the real size.
+ * the whole read). The file size (`cms_assets.bytes`) is one of them.
  */
 export const TEMPLATE_COLUMNS = 'key, name, container_type_key, slots, built_in, created_at, updated_at';
-export const ASSET_COLUMNS = 'id, bucket, path, mime, width, height, label, created_at';
+export const ASSET_COLUMNS = 'id, bucket, path, mime, bytes, width, height, label, created_at';
 
 type Row = Record<string, any>;
 type NotFoundContext = { kind?: ContentNotFoundError['kind']; id?: string };
