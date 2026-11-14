@@ -137,11 +137,18 @@ function build(path: string, label: string, node: FieldNode, group: string, cont
   }
 }
 
+/** `false` for an unsupported schema and for a list whose element, through any number of nested lists, is unsupported. */
+function isBuildable(node: FieldNode): boolean {
+  if (node.kind === 'unsupported') return false;
+  if (node.kind === 'array') return node.element !== undefined && isBuildable(node.element);
+  return true;
+}
+
 function buildFields(parentPath: string, node: FieldNode, group: string, context: Context): FieldConfig[] {
   const fields: FieldConfig[] = [];
   for (const [name, child] of Object.entries(node.shape ?? {})) {
-    // a field the generator cannot build, or a list of them, is left out: a custom type draws it with its own form
-    if (child.kind === 'unsupported' || (child.kind === 'array' && child.element?.kind === 'unsupported')) continue;
+    // a field the generator cannot build, or a list of them (at any depth), is left out: a custom type draws it with its own form
+    if (!isBuildable(child)) continue;
     fields.push(build(parentPath ? `${parentPath}.${name}` : name, humanise(name), child, group, context));
   }
   return sortByOrder(fields);

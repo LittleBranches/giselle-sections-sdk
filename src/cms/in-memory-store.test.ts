@@ -549,6 +549,21 @@ describe('layouts', () => {
     expect(await rejects(store.layouts.restore('home', 9, 3))).toBeInstanceOf(ContentValidationError);
   });
 
+  it('reads a layout for a page: the published one, the newest only for an editor in preview, never an error', async () => {
+    expect(await store.layouts.read('home', true)).toBeNull();
+    await store.layouts.saveDraft('home', { sections: [] }, [], null);
+    expect(await store.layouts.read('home', false)).toBeNull();
+    expect(await store.layouts.read('home', true)).toMatchObject({ pageKey: 'home', version: 1, status: 'draft', isDraft: true });
+    await store.layouts.publish('home', 1);
+    await store.layouts.saveDraft('home', { sections: [{ key: 'a', template: 'banner-section', slots: {} }] }, [], 1);
+    expect(await store.layouts.read('home', true)).toMatchObject({ version: 2, isDraft: true });
+    expect(await store.layouts.read('home', false)).toMatchObject({ version: 1, status: 'published', isDraft: false });
+    for (const role of ['visitor', 'member'] as const) {
+      store.setRole(role);
+      expect(await store.layouts.read('home', true)).toMatchObject({ version: 1, isDraft: false });
+    }
+  });
+
   it('logs a layout publish once', async () => {
     await store.layouts.saveDraft('home', { sections: [] }, [], null);
     await store.layouts.publish('home', 1);
@@ -711,5 +726,49 @@ describe('legacy entries', () => {
     expect(await store.saveDraft('hero', 'sl', { a: 1 }, null)).toBe(1);
     await store.publish('hero', 'sl', 1);
     expect((await store.readPublished('hero', 'sl'))?.content).toEqual({ a: 1 });
+  });
+});
+
+describe('pages', () => {
+  const about = { pageKey: 'about', slug: 'about-us', titles: { en: 'About us', sl: 'O nas' } };
+
+  it('creates a page with an empty draft layout, shown to visitors only once published', async () => {
+    const page = await store.pages.create(about);
+    expect(page).toMatchObject({ ...about, descriptions: {}, publishedVersion: null });
+    expect(await store.layouts.readNewest('about')).toMatchObject({ version: 1, status: 'draft', content: { sections: [] } });
+    expect(await store.pages.readBySlug('about-us', true)).toMatchObject({ page: { pageKey: 'about' }, layout: { version: 1, isDraft: true } });
+    expect(await store.pages.readBySlug('about-us', false)).toBeNull();
+    store.setRole('visitor');
+    expect(await store.pages.readBySlug('about-us', true)).toBeNull();
+    store.setRole('editor');
+    await store.layouts.publish('about', 1);
+    store.setRole('visitor');
+    expect(await store.pages.readBySlug('about-us', true)).toMatchObject({ page: { publishedVersion: 1 }, layout: { version: 1, isDraft: false } });
+    expect(await store.pages.readBySlug('nowhere', true)).toBeNull();
+    expect(store.changeLog().map((entry) => entry.action)).toContain('create_page');
+  });
+
+  it('refuses a taken slug, a page key a layout already has, a bad page and a caller who is not an editor', async () => {
+    await store.pages.create(about);
+    await store.layouts.saveDraft('home', { sections: [] }, [], null);
+    expect(await rejects(store.pages.create({ ...about, pageKey: 'other' }))).toMatchObject({ name: 'PageTakenError', field: 'slug', value: 'about-us' });
+    expect(await rejects(store.pages.create({ ...about, pageKey: 'home', slug: 'home-page' }))).toMatchObject({ name: 'PageTakenError', field: 'pageKey', value: 'home' });
+    expect(await rejects(store.pages.create({ ...about, pageKey: 'x', slug: 'Bad Slug' }))).toBeInstanceOf(ContentValidationError);
+    expect(await rejects(store.pages.create({ pageKey: 'x', slug: 'x', titles: { sl: 'Brez angleščine' } } as never))).toBeInstanceOf(ContentValidationError);
+    store.setRole('member');
+    expect(await rejects(store.pages.create({ ...about, pageKey: 'y', slug: 'y' }))).toBeInstanceOf(ContentPermissionError);
+  });
+
+  it('changes a page, keeping what is not given, and lists pages for editors only', async () => {
+    await store.pages.create(about);
+    await store.pages.create({ pageKey: 'news', slug: 'news', titles: { en: 'News' } });
+    expect(await store.pages.update('about', { slug: 'who-we-are', descriptions: { en: 'Us' } })).toMatchObject({ slug: 'who-we-are', titles: about.titles, descriptions: { en: 'Us' } });
+    expect(await rejects(store.pages.update('about', { slug: 'news' }))).toMatchObject({ name: 'PageTakenError', field: 'slug' });
+    expect(await store.pages.update('about', { slug: 'who-we-are' })).toMatchObject({ slug: 'who-we-are' });
+    expect(await rejects(store.pages.update('nope', { slug: 'x' }))).toBeInstanceOf(ContentNotFoundError);
+    expect((await store.pages.list()).map((page) => page.slug)).toEqual(['news', 'who-we-are']);
+    store.setRole('visitor');
+    expect(await store.pages.list()).toEqual([]);
+    expect(await rejects(store.pages.update('about', { slug: 'z' }))).toBeInstanceOf(ContentPermissionError);
   });
 });

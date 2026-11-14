@@ -50,7 +50,7 @@ beforeAll(async () => {
 describe("the tables, through the API", () => {
   it.each(roles)("%s: no insert, update or delete on any table", async (_name, who) => {
     const tables = (await admin(`select tablename from pg_tables where schemaname = 'public' and tablename like 'cms\\_%' order by 1`)).rows.map((r) => r.tablename);
-    expect(tables.length).toBe(9);
+    expect(tables.length).toBe(10);
     for (const table of tables) {
       const column = (await admin(`select column_name from information_schema.columns where table_name = '${table}' and is_identity = 'NO' order by ordinal_position limit 1`)).rows[0]!.column_name;
       for (const statement of [`insert into ${table} default values`, `update ${table} set ${column} = ${column}`, `delete from ${table}`]) {

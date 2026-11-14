@@ -2,6 +2,7 @@ import type { ContentType } from './content-type';
 import type { Asset, NewAsset } from './asset';
 import type { ContentItem, ContentItemSummary, ItemUsage, NewContentItem, ResolvedItem } from './item';
 import type { CmsLanguage } from './languages';
+import type { CmsPage, CmsPageChanges, NewCmsPage, PageMeta } from './page';
 import type { PageLayout, PageLayoutContent, PageLayoutVersionRecord } from './page-layout';
 import type { ContentTypeRegistry } from './registry';
 import type { CmsContentStore } from './store';
@@ -37,6 +38,12 @@ export type ResolvedPage = {
   problems: ResolveProblem[];
 };
 
+/** A page an editor made, found by its address: the resolved page plus its title and description in the language asked for. */
+export type ResolvedSlugPage = ResolvedPage & {
+  slug: string;
+  meta: PageMeta;
+};
+
 export type ReadOptions = {
   /**
    * Show drafts where the caller may. A visitor, or a signed-in person who is not an editor, gets the published
@@ -51,6 +58,12 @@ export interface CmsReader {
   page(pageKey: string, language: CmsLanguage, options?: ReadOptions): Promise<ResolvedPage | null>;
   /** One item by id, content checked against `type`'s schema. `null` if it has nothing to show. */
   item<T>(itemId: string, type: ContentType<T>, language: CmsLanguage, options?: ReadOptions): Promise<ResolvedItem<T> | null>;
+  /**
+   * A page an editor made, by its address, for a catch-all route: resolved like `page`, with its title and description
+   * (each falling back to English). `null` (a 404) when the page does not exist or its layout is not published; in an
+   * editor's preview, also an unpublished page's newest draft.
+   */
+  pageBySlug(slug: string, language: CmsLanguage, options?: ReadOptions): Promise<ResolvedSlugPage | null>;
   /** The templates, for a site that builds its own page rendering. */
   templates(): Promise<SectionTemplate[]>;
 }
@@ -81,6 +94,16 @@ export interface CmsEditor {
   restoreLayout(pageKey: string, version: number, baseVersion: number | null): Promise<number>;
   reorderSlot(pageKey: string, sectionKey: string, slotKey: string, itemIds: readonly string[], baseVersion: number): Promise<number>;
 
+  /** Every page an editor made, by address. */
+  pages(): Promise<CmsPage[]>;
+  /**
+   * Makes a page with an empty draft layout; open it in the layout editor with `layoutDraft(page.pageKey)`. Refuses a
+   * slug the site reserved, or one or a page key already taken, with `PageTakenError`.
+   */
+  createPage(page: NewCmsPage): Promise<CmsPage>;
+  /** Changes a page's address, titles or descriptions; a reserved or taken slug is refused with `PageTakenError`. */
+  updatePage(pageKey: string, changes: CmsPageChanges): Promise<CmsPage>;
+
   saveTemplate(template: SectionTemplate): Promise<SectionTemplate>;
   assets(): Promise<Asset[]>;
   registerAsset(asset: NewAsset): Promise<Asset>;
@@ -93,4 +116,13 @@ export type CmsProvider = CmsReader & CmsEditor;
  * on save and on read, collects references, applies the language fallback and refuses drafts to visitors. Invalid
  * content is never returned to a page and never handed to the store.
  */
-export type CreateCmsProvider = (dependencies: { store: CmsContentStore; registry: ContentTypeRegistry }) => CmsProvider;
+export type CreateCmsProvider = (dependencies: {
+  store: CmsContentStore;
+  registry: ContentTypeRegistry;
+  /**
+   * The addresses the site already serves from its fixed routes (`blog`, `contact`, a language prefix...), which a page
+   * an editor makes may not take. Matched on the first path segment, ignoring case and slashes: `/blog/posts` reserves
+   * `blog`.
+   */
+  reservedSlugs?: readonly string[];
+}) => CmsProvider;

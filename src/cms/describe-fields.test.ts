@@ -151,4 +151,14 @@ describe('describeFields: a field the generator cannot build', () => {
   it('registers a custom type that has such a list', () => {
     expect(() => make(z.object({ title: z.string(), paragraphs: z.array(answer) }), { custom: true })).not.toThrow();
   });
+
+  it('leaves out a list of lists whose innermost elements are unsupported', () => {
+    const type = make(z.object({ title: z.string(), rows: z.array(z.array(answer)), nested: z.array(z.object({ q: z.string(), paragraphs: z.array(answer) })) }), { custom: true });
+    expect(() => describeFields(type)).not.toThrow();
+    expect(describeFields(type)).toMatchObject([{ path: 'title' }, { path: 'nested', item: { fields: [{ path: 'nested.*.q' }] } }]);
+  });
+
+  it('registers a custom type that has a list of such lists', () => {
+    expect(() => make(z.object({ rows: z.array(z.array(answer).optional()) }), { custom: true })).not.toThrow();
+  });
 });

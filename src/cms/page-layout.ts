@@ -48,6 +48,20 @@ export const pageLayoutSchema = z
   .strict();
 export type PageLayout = z.infer<typeof pageLayoutSchema>;
 
+/**
+ * A layout as a page reads it: the published version, or, in a preview by an editor, the newest one. Who the caller is
+ * decides, not the flag: anyone else gets the published version.
+ */
+export type PageLayoutReadRecord = {
+  pageKey: string;
+  version: number;
+  status: 'draft' | 'published';
+  /** `true` when `content` is a version that is not published, which only a preview by an editor returns. */
+  isDraft: boolean;
+  content: unknown;
+  changedAt: string;
+};
+
 /** One saved version of a layout, as the backend returns it, content unchecked (check it with `pageLayoutContentSchema`). */
 export type PageLayoutVersionRecord = {
   pageKey: string;

@@ -8,12 +8,14 @@ import {
   ContentReferenceError,
   ContentReferencedError,
   LayoutRuleError,
+  PageTakenError,
 } from './errors';
 import type { ContentItem, ContentItemSummary, ItemUsage, ItemVersionRecord } from './item';
 import { formatLayoutProblem, type LayoutProblem } from './layout-rules';
 import type { EntryLanguage } from './languages';
-import type { PageLayout, PageLayoutVersionRecord } from './page-layout';
+import type { PageLayout, PageLayoutReadRecord, PageLayoutVersionRecord } from './page-layout';
 import type { CmsContentStore, ResolvedItemRecord } from './store';
+import type { CmsPage } from './page';
 import type { SectionTemplateRecord } from './template';
 
 /** What a failed call looks like (the shape the Supabase client gives, `PostgrestError`-like). */
@@ -110,6 +112,10 @@ export function mapCmsError(error: CmsRpcError, context: NotFoundContext & { ite
       return new ContentReferenceError('not-reusable', idsOf(detail));
     case CMS_ERROR_CODES.cycle:
       return new ContentReferenceError('cycle', idsOf(detail));
+    case CMS_ERROR_CODES.pageTaken: {
+      const named = detail && typeof detail === 'object' && !Array.isArray(detail) ? (detail as { field?: unknown; value?: unknown }) : {};
+      return new PageTakenError(named.field === 'pageKey' ? 'pageKey' : 'slug', typeof named.value === 'string' ? named.value : '');
+    }
     case CMS_ERROR_CODES.slotRule:
     case CMS_ERROR_CODES.layoutIncomplete: {
       const problems = (Array.isArray(detail) ? (detail as Row[]) : []).map((entry): LayoutProblem => ({ section: String(entry.section ?? ''), slot: entry.slot ?? null, message: String(entry.message ?? '') }));
@@ -171,6 +177,14 @@ export function createSupabaseCmsStore(client: CmsSupabaseClient): CmsContentSto
     const { content: _content, ...rest } = record;
     return rest;
   };
+  const toLayoutRead = (pageKey: string, row: Row): PageLayoutReadRecord => ({
+    pageKey,
+    version: row.version,
+    status: row.status,
+    isDraft: Boolean(row.is_draft),
+    content: row.content,
+    changedAt: row.changed_at,
+  });
   const toLayoutVersion = (pageKey: string, row: Row): PageLayoutVersionRecord => ({
     pageKey,
     version: row.version,
@@ -269,6 +283,11 @@ export function createSupabaseCmsStore(client: CmsSupabaseClient): CmsContentSto
       const row = firstRow(await call('cms_read_layout', { p_page_key: pageKey, p_preview: false }, { kind: 'layout', id: pageKey }));
       return row ? toLayoutVersion(pageKey, row) : null;
     },
+    async read(pageKey, preview) {
+      // `cms_read_layout` is granted to visitors too; the database ignores `p_preview` for anyone who is not an editor.
+      const row = firstRow(await call('cms_read_layout', { p_page_key: pageKey, p_preview: preview }, { kind: 'layout', id: pageKey }));
+      return row ? toLayoutRead(pageKey, row) : null;
+    },
     async readNewest(pageKey) {
       const row = firstRow(await call('cms_read_layout_newest', { p_page_key: pageKey }, { kind: 'layout', id: pageKey }));
       return row ? toLayoutVersion(pageKey, row) : null;
@@ -324,6 +343,43 @@ export function createSupabaseCmsStore(client: CmsSupabaseClient): CmsContentSto
     },
   };
 
+  const toPage = (row: Row): CmsPage => ({
+    id: row.id,
+    pageKey: row.page_key,
+    slug: row.slug,
+    titles: row.titles ?? {},
+    descriptions: row.descriptions ?? {},
+    publishedVersion: row.published_version ?? null,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  });
+
+  const pages: CmsContentStore['pages'] = {
+    async create(page) {
+      const data = await call('cms_create_page', { p_page_key: page.pageKey, p_slug: page.slug, p_titles: page.titles, p_descriptions: page.descriptions ?? {} });
+      return toPage(firstRow(data) as Row);
+    },
+    async update(pageKey, changes) {
+      const data = await call(
+        'cms_update_page',
+        { p_page_key: pageKey, p_slug: changes.slug ?? null, p_titles: changes.titles ?? null, p_descriptions: changes.descriptions ?? null },
+        { kind: 'page', id: pageKey },
+      );
+      return toPage(firstRow(data) as Row);
+    },
+    async list() {
+      return asRows(await call('cms_list_pages', {})).map(toPage);
+    },
+    async readBySlug(slug, preview) {
+      const row = firstRow(await call('cms_read_page_by_slug', { p_slug: slug, p_preview: preview }));
+      if (!row) return null;
+      return {
+        page: toPage(row),
+        layout: toLayoutRead(row.page_key, row),
+      };
+    },
+  };
+
   const legacy = (row: Row): ContentVersionRecord => toVersionRecord(row);
   const legacyArgs = (section: string, language: string) => ({ p_section: section, p_language: language });
 
@@ -352,5 +408,6 @@ export function createSupabaseCmsStore(client: CmsSupabaseClient): CmsContentSto
     layouts,
     templates,
     assets,
+    pages,
   };
 }
