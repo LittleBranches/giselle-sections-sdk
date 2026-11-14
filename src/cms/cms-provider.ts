@@ -1,5 +1,6 @@
 import { ContentValidationError } from '../content/errors';
 import { newAssetSchema } from './asset';
+import { issuesOf } from './issues';
 import { collectItemRefs, collectLayoutItemIds } from './collect';
 import type { ContentType } from './content-type';
 import { cmsLanguageSchema, NEUTRAL_LANGUAGE, type CmsLanguage, type EntryLanguage } from './languages';
@@ -15,8 +16,14 @@ import { sectionTemplateSchema, type SectionTemplate } from './template';
 const MAX_IDS_PER_CALL = 500;
 
 type Validated = { ok: true; content: unknown } | { ok: false; reason: 'unknown-type' | 'invalid-content'; message: string };
-type Issue = { path: readonly PropertyKey[]; message: string };
-const issuesOf = (error: { issues: readonly Issue[] }): string[] => error.issues.map((issue) => `${issue.path.map(String).join('.') || '(content)'}: ${issue.message}`);
+
+/** Parses a page's fields, or throws the validation error the caller sees. */
+function parsePage<T>(schema: { safeParse: (value: unknown) => { success: true; data: T } | { success: false; error: { issues: readonly { path: readonly PropertyKey[]; message: string }[] } } }, value: unknown): T {
+  const result = schema.safeParse(value);
+  if (result.success) return result.data;
+  const issues = issuesOf(result.error);
+  throw new ContentValidationError(`That page is not valid: ${issues.join('; ')}`, issues);
+}
 
 function check<T>(type: ContentType<T>, content: unknown, when: 'save' | 'read'): T {
   const result = type.schema.safeParse(content);
@@ -314,23 +321,15 @@ export const createCmsProvider: CreateCmsProvider = ({ store, registry, reserved
     pages: () => store.pages.list(),
 
     async createPage(page) {
-      const parsed = newCmsPageSchema.safeParse(page);
-      if (!parsed.success) {
-        const issues = issuesOf(parsed.error);
-        throw new ContentValidationError(`That page is not valid: ${issues.join('; ')}`, issues);
-      }
-      assertFreeSlug(parsed.data.slug);
-      return store.pages.create(parsed.data);
+      const parsed = parsePage(newCmsPageSchema, page);
+      assertFreeSlug(parsed.slug);
+      return store.pages.create(parsed);
     },
 
     async updatePage(pageKey, changes) {
-      const parsed = cmsPageChangesSchema.safeParse(changes);
-      if (!parsed.success) {
-        const issues = issuesOf(parsed.error);
-        throw new ContentValidationError(`That page is not valid: ${issues.join('; ')}`, issues);
-      }
-      assertFreeSlug(parsed.data.slug);
-      return store.pages.update(pageKey, parsed.data);
+      const parsed = parsePage(cmsPageChangesSchema, changes);
+      assertFreeSlug(parsed.slug);
+      return store.pages.update(pageKey, parsed);
     },
 
     // ---- templates and assets -------------------------------------------------------------------------------

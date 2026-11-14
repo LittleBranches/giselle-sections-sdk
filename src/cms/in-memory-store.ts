@@ -13,6 +13,7 @@ import type { ContentItem, ContentItemSummary, ItemUsage, ItemVersionRecord } fr
 import { newContentItemSchema } from './item';
 import { checkLayoutSlots, formatLayoutProblem } from './layout-rules';
 import { NEUTRAL_LANGUAGE, UNIVERSAL_FALLBACK_LANGUAGE, type EntryLanguage } from './languages';
+import { issuesOf } from './issues';
 import { keySchema } from './keys';
 import { cmsPageChangesSchema, newCmsPageSchema, type CmsPage } from './page';
 import { pageLayoutContentSchema, type PageLayout, type PageLayoutContent, type PageLayoutVersionRecord } from './page-layout';
@@ -513,7 +514,7 @@ export function createInMemoryCmsStore(options: InMemoryCmsStoreOptions = {}): I
   // ---- pages ------------------------------------------------------------------------------------------------------
 
   const invalid = (what: string, error: { issues: readonly { path: readonly PropertyKey[]; message: string }[] }) => {
-    const issues = error.issues.map((issue) => `${issue.path.map(String).join('.') || `(${what})`}: ${issue.message}`);
+    const issues = issuesOf(error, what);
     return new ContentValidationError(`That ${what} is not valid: ${issues.join('; ')}`, issues);
   };
   const asPage = (page: Omit<CmsPage, 'publishedVersion'>): CmsPage => ({ ...copy(page), publishedVersion: layouts.get(page.pageKey)?.published ?? null });

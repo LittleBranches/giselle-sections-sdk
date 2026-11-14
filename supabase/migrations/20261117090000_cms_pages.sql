@@ -179,7 +179,13 @@ begin
     perform public.cms_raise_page_taken('slug', p_slug);
   end if;
 
-  perform public.cms_add_layout_version(p_page_key, null, '{"sections": []}'::jsonb, '{}'::uuid[], null);
+  begin
+    perform public.cms_add_layout_version(p_page_key, null, '{"sections": []}'::jsonb, '{}'::uuid[], null);
+  exception when sqlstate 'CE001' then
+    -- two editors racing for the same page key: the second one waits on the first, finds its layout and is told the key
+    -- is taken, as if it had been taken before (this call never has a base version, so a stale save can only mean that)
+    perform public.cms_raise_page_taken('pageKey', p_page_key);
+  end;
   select l.id into the_layout from public.cms_layouts as l where l.page_key = p_page_key;
 
   begin

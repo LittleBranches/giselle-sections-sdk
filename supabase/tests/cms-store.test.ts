@@ -83,45 +83,45 @@ describe("pages an editor makes, through the store and the provider", () => {
 
   it("creates a page with an empty draft, shown to nobody but an editor in preview until it is published", async () => {
     caller = editor;
-    const page = await provider.createPage({ pageKey: "summer", slug: "summer-camp", titles: { en: "Summer camp", de: "Sommerlager" }, descriptions: { en: "Two weeks" } });
-    expect(page).toMatchObject({ pageKey: "summer", slug: "summer-camp", titles: { en: "Summer camp", de: "Sommerlager" }, descriptions: { en: "Two weeks" }, publishedVersion: null });
-    expect(await provider.layoutDraft("summer")).toMatchObject({ version: 1, content: { sections: [] } });
-    expect(await provider.pageBySlug("summer-camp", "de", { preview: true })).toMatchObject({
-      pageKey: "summer",
-      slug: "summer-camp",
+    const page = await provider.createPage({ pageKey: "about", slug: "about-us", titles: { en: "About us", de: "Über uns" }, descriptions: { en: "Who we are" } });
+    expect(page).toMatchObject({ pageKey: "about", slug: "about-us", titles: { en: "About us", de: "Über uns" }, descriptions: { en: "Who we are" }, publishedVersion: null });
+    expect(await provider.layoutDraft("about")).toMatchObject({ version: 1, content: { sections: [] } });
+    expect(await provider.pageBySlug("about-us", "de", { preview: true })).toMatchObject({
+      pageKey: "about",
+      slug: "about-us",
       version: 1,
       isDraft: true,
       sections: [],
-      meta: { title: "Sommerlager", titleLanguage: "de", description: "Two weeks" },
+      meta: { title: "Über uns", titleLanguage: "de", description: "Who we are" },
     });
-    expect(await provider.pageBySlug("summer-camp", "en")).toBeNull();
+    expect(await provider.pageBySlug("about-us", "en")).toBeNull();
     for (const [, who] of roles) {
       caller = who;
-      expect(await provider.pageBySlug("summer-camp", "en", { preview: true })).toBeNull();
+      expect(await provider.pageBySlug("about-us", "en", { preview: true })).toBeNull();
     }
 
     caller = editor;
-    await provider.publishLayout("summer", 1);
+    await provider.publishLayout("about", 1);
     for (const [, who] of roles) {
       caller = who;
-      expect(await provider.pageBySlug("summer-camp", "sl", { preview: true })).toMatchObject({ version: 1, isDraft: false, meta: { title: "Summer camp", titleLanguage: "en" } });
+      expect(await provider.pageBySlug("about-us", "sl", { preview: true })).toMatchObject({ version: 1, isDraft: false, meta: { title: "About us", titleLanguage: "en" } });
     }
   });
 
   it("refuses a taken address, a taken key and a reserved address with PageTakenError, saying which", async () => {
     caller = editor;
-    expect(await rejects(provider.createPage({ pageKey: "other", slug: "summer-camp", titles: { en: "x" } }))).toMatchObject({ name: "PageTakenError", field: "slug", value: "summer-camp", reason: "taken" });
+    expect(await rejects(provider.createPage({ pageKey: "other", slug: "about-us", titles: { en: "x" } }))).toMatchObject({ name: "PageTakenError", field: "slug", value: "about-us", reason: "taken" });
     expect(await rejects(provider.createPage({ pageKey: "home", slug: "home-two", titles: { en: "x" } }))).toMatchObject({ field: "pageKey", value: "home", reason: "taken" });
     const reserved = await rejects(provider.createPage({ pageKey: "blogish", slug: "blog", titles: { en: "x" } }));
     expect(reserved).toBeInstanceOf(PageTakenError);
     expect(reserved).toMatchObject({ field: "slug", value: "blog", reason: "reserved" });
-    expect(await rejects(provider.updatePage("summer", { slug: "contact" }))).toMatchObject({ reason: "reserved" });
+    expect(await rejects(provider.updatePage("about", { slug: "contact" }))).toMatchObject({ reason: "reserved" });
   });
 
   it("changes and lists pages for editors only", async () => {
     caller = editor;
-    expect(await provider.updatePage("summer", { slug: "summer" })).toMatchObject({ slug: "summer", titles: { en: "Summer camp", de: "Sommerlager" }, publishedVersion: 1 });
-    expect((await provider.pages()).map((page) => page.slug)).toEqual(["summer"]);
+    expect(await provider.updatePage("about", { slug: "about" })).toMatchObject({ slug: "about", titles: { en: "About us", de: "Über uns" }, publishedVersion: 1 });
+    expect((await provider.pages()).map((page) => page.slug)).toEqual(["about"]);
     expect(await rejects(provider.updatePage("nope", { slug: "nope" }))).toBeInstanceOf(ContentNotFoundError);
     caller = as(STRANGER);
     expect(await provider.pages()).toEqual([]);

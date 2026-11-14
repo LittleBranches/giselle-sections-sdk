@@ -177,6 +177,14 @@ export function createSupabaseCmsStore(client: CmsSupabaseClient): CmsContentSto
     const { content: _content, ...rest } = record;
     return rest;
   };
+  const toLayoutRead = (pageKey: string, row: Row): PageLayoutReadRecord => ({
+    pageKey,
+    version: row.version,
+    status: row.status,
+    isDraft: Boolean(row.is_draft),
+    content: row.content,
+    changedAt: row.changed_at,
+  });
   const toLayoutVersion = (pageKey: string, row: Row): PageLayoutVersionRecord => ({
     pageKey,
     version: row.version,
@@ -278,9 +286,7 @@ export function createSupabaseCmsStore(client: CmsSupabaseClient): CmsContentSto
     async read(pageKey, preview) {
       // `cms_read_layout` is granted to visitors too; the database ignores `p_preview` for anyone who is not an editor.
       const row = firstRow(await call('cms_read_layout', { p_page_key: pageKey, p_preview: preview }, { kind: 'layout', id: pageKey }));
-      return row
-        ? ({ pageKey, version: row.version, status: row.status, isDraft: Boolean(row.is_draft), content: row.content, changedAt: row.changed_at } satisfies PageLayoutReadRecord)
-        : null;
+      return row ? toLayoutRead(pageKey, row) : null;
     },
     async readNewest(pageKey) {
       const row = firstRow(await call('cms_read_layout_newest', { p_page_key: pageKey }, { kind: 'layout', id: pageKey }));
@@ -369,7 +375,7 @@ export function createSupabaseCmsStore(client: CmsSupabaseClient): CmsContentSto
       if (!row) return null;
       return {
         page: toPage(row),
-        layout: { pageKey: row.page_key, version: row.version, status: row.status, isDraft: Boolean(row.is_draft), content: row.content, changedAt: row.changed_at },
+        layout: toLayoutRead(row.page_key, row),
       };
     },
   };
